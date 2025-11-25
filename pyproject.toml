@@ -1,0 +1,14 @@
+[project]
+name = "cleancensus"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "chainsolvers>=0.1.0",
+    "geopandas>=1.1.1",
+    "notebook>=7.4.7",
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "pyarrow>=22.0.0",
+    "tqdm>=4.67.1",
+]
