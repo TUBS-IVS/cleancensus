@@ -40,6 +40,11 @@ def test_specs_exist_in_1km_schema():
         assert spec.child_row_total_col.replace("_100m-Gitter", "_1km-Gitter") in cols, spec.name
 
 
+def test_unknown_topic_name_raises():
+    with pytest.raises(ValueError, match="Unknown topic names"):
+        build_new_topic_specs("100m", names=["Nope_NotATopic"])
+
+
 @pytest.mark.skipif(not os.path.exists(PATH_10), reason="10km pickle not present")
 def test_specs_exist_in_10km_frame():
     import pandas as pd

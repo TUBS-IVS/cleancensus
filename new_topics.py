@@ -150,6 +150,11 @@ def build_new_topic_specs(level: str, tiers=DEFAULT_TIERS, names=None):
     level: "1km" (parent 10km) or "100m" (parent 1km).
     names: optional explicit topic-name subset (overrides tiers).
     """
+    if names is not None:
+        all_names = {name for topics in RAW_TOPICS.values() for name, _, _, _ in topics}
+        unknown = set(names) - all_names
+        if unknown:
+            raise ValueError(f"Unknown topic names: {sorted(unknown)}; catalog has {sorted(all_names)}")
     specs = []
     for tier, topics in RAW_TOPICS.items():
         for name, tot_10, cats_10, alpha in topics:

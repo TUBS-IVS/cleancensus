@@ -34,6 +34,8 @@ DOWNSCALE_KW = dict(inner_passes=10, outer_iters=2, rake_tol=1e-11,
 def stage_a(names):
     specs = build_new_topic_specs("1km", names=names)
     print(f"[stage_a] {len(specs)} topics: {[s.name for s in specs]}")
+    if not specs:
+        sys.exit("[stage_a] no specs matched --topics; aborting")
 
     df10 = pd.read_pickle(PATH_10).reset_index(drop=False)
     df1 = pd.read_parquet(PATH_1)
@@ -58,7 +60,7 @@ def stage_a(names):
                               child_parent_id_col="GITTER_ID_10km",
                               spec=spec, **DOWNSCALE_KW)
         for c in spec.child_cat_cols:
-            df1[c] = res[c].values
+            df1[c] = res[c].values.astype(np.float32)
 
     df1.to_parquet(OUT_1_V2, index=False)
     print(f"[stage_a] wrote {OUT_1_V2} cols={len(df1.columns)}")
@@ -71,6 +73,8 @@ def stage_b(names, parents_csv=None):
 
     specs = build_new_topic_specs("100m", names=names)
     print(f"[stage_b] {len(specs)} topics: {[s.name for s in specs]}")
+    if not specs:
+        sys.exit("[stage_b] no specs matched --topics; aborting")
 
     df1 = pd.read_parquet(OUT_1_V2)
     df1["GITTER_ID_1km"] = df1["GITTER_ID_1km"].astype(str).str.strip()
@@ -79,7 +83,7 @@ def stage_b(names, parents_csv=None):
     for spec in specs:
         needed.add(spec.child_row_total_col)
         needed.update(spec.child_cat_cols)
-    df100_min = pd.read_parquet(PATH_100, columns=sorted(needed)).reset_index(drop=False)
+    df100_min = pd.read_parquet(PATH_100, columns=sorted(needed)).reset_index(drop=True)
     df100_min.replace([np.inf, -np.inf], np.nan, inplace=True)
     df100_min.fillna(0, inplace=True)
     for c in df100_min.columns:
@@ -100,6 +104,9 @@ def stage_b(names, parents_csv=None):
     df100_min["is_orphan"] = df100_min["is_orphan"] | ~df100_min["GITTER_ID_1km"].isin(p_1km)
     df100_ok = df100_min.loc[~df100_min["is_orphan"]].copy()
     df1_ok = df1.loc[df1["GITTER_ID_1km"].isin(df100_ok["GITTER_ID_1km"])].copy()
+
+    if df100_ok.empty:
+        sys.exit("[stage_b] no non-orphan cells matched (bad --parents-csv?); aborting")
 
     specs = apply_adj_for_all_topics(
         parent_df=df1_ok, child_df=df100_ok,
@@ -168,6 +175,7 @@ def stage_b(names, parents_csv=None):
         pos += n
     if writer:
         writer.close()
+    assert pos == len(df100_min), f"row mismatch: streamed {pos} vs frame {len(df100_min)}"
     print(f"[stage_b] wrote {OUT_100_V2} (+{len(extra_fields)} new cols, {pos:,} rows)")
 
 

@@ -55,6 +55,14 @@ def main():
     need.difference_update(missing_anchors)
     need.update(anchors)
 
+    # Pre-check: report missing required columns and remove them from need
+    missing_cols = set()
+    for c in sorted(need - avail):
+        if c not in missing_anchors:
+            check(f"column present: {c}", False)
+            missing_cols.add(c)
+    need -= missing_cols
+
     df = pd.read_parquet(args.path_100, columns=sorted(c for c in need if c in avail))
     n = len(df)
     print(f"rows: {n:,}")
@@ -62,6 +70,10 @@ def main():
     # 1) per-topic: sum(categories) == *_adj total (the core harmonization invariant)
     for s in specs:
         adj = s.child_row_total_col + "_adj"
+        missing_topic_cols = [c for c in s.child_cat_cols + [adj] if c not in df.columns]
+        if missing_topic_cols:
+            check(f"{s.name}: sum(cats)==adj", False, f"missing columns: {missing_topic_cols}")
+            continue
         cats = df[s.child_cat_cols].sum(axis=1)
         d = (cats - df[adj]).abs()
         check(f"{s.name}: sum(cats)==adj", int((d > 0.5).sum()) == 0,
@@ -99,9 +111,13 @@ def main():
     # 3) global mass: 100m adj sum vs 10km raw national sum per topic (within 2%)
     df10 = pd.read_pickle(PATH_10).reset_index(drop=False)
     for s in build_new_topic_specs("1km", names=args.topics):
+        adj_col = adj_of(s.name)
+        if adj_col not in df.columns:
+            check(f"{s.name}: national mass within 2%", False, f"missing columns: {adj_col}")
+            continue
         tot10 = s.child_row_total_col.replace("_1km-Gitter", "_10km-Gitter")
         nat = pd.to_numeric(df10[tot10], errors="coerce").fillna(0).sum()
-        got = df[adj_of(s.name)].sum()
+        got = df[adj_col].sum()
         rel = abs(got - nat) / max(nat, 1.0)
         check(f"{s.name}: national mass within 2%", rel < 0.02,
               f"100m={got:,.0f} 10km={nat:,.0f} rel={rel:.4f}")
