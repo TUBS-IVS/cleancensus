@@ -1,8 +1,14 @@
 import os
+from pathlib import Path
+
 import pytest
 
-from new_topics import RAW_TOPICS, build_new_topic_specs
-from paths import PATH_10, PATH_1, PATH_100
+from cleancensus.topics import RAW_TOPICS, build_new_topic_specs
+
+_IN = Path(__file__).resolve().parent.parent / "data" / "inputs"
+PATH_10 = _IN / "df10_with_single_years.pickle"
+PATH_1 = _IN / "cells_1km_with_binneds.parquet"
+PATH_100 = _IN / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
 
 
 def test_spec_shapes_consistent():

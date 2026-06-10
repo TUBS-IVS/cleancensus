@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from harmonization import (
+from cleancensus.harmonization import (
     TrustBlend, TopicSpec, rake_to_margins, make_child_totals_adj,
     downscale_topic, impute_orphan_rows_100m,
 )

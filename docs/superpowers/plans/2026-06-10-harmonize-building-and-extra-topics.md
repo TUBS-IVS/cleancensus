@@ -1208,6 +1208,29 @@ git commit -m "docs: GitHub-ready README"
 
 ---
 
+### Task 10 (added 2026-06-10 after the v2 run): Tenure as derived topic → v3
+
+**Motivation:** MiD `H_MIETE` (Miete/Eigentum, all private HH) is a clean seed expression;
+the census grid has only the `Eigentuemerquote` RATIO. Derive a synthetic 2-category topic
+(EigentuemerHH / MieterHH) anchored to the already-harmonized household total and run it
+through the same machinery (1km→100m only — the 10km level has NO quote column).
+
+**Key data facts (verified):**
+- In the RAW merged data the quote is never 0 — it is NaN (not published) or >0.
+  After the prepared file's fillna(0): quote==0 ⇔ missing. Rule: quote>0 = local signal
+  (owner = q/100 × HH_adj, renter = rest); quote==0 & HH>0 = NO signal (cats 0/0 →
+  parent-share fill via trust-blend/IPF). 471,752 such 100m cells (19.1% of HH mass).
+- 1km: 12,095 inhabited cells lack the quote → fill q from the HH-weighted mean of the
+  surrounding 10km group (national mean as last resort), logged.
+- Anchor totals: `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts_*_adj` (exists at
+  1km and 100m) → owner+renter == HH_adj == Seniorenstatus_adj by construction.
+
+**Artifacts:** `tenure_v3.py` (subcommands `run` / `check`), columns
+`EigentuemerHH_Tenure_{1km,100m}-Gitter`, `MieterHH_Tenure_{1km,100m}-Gitter`;
+outputs `cells_1km_with_binneds_v3.parquet`, `..._regiostar_v3.parquet` (v2 + 2 cols,
+streamed). Acceptance: sum==HH_adj exact (0 cells >0.5); national owner share in
+[0.40, 0.50]; 1km margin echo; no NaN/negatives; no-signal fill count logged ≈ 471k.
+
 ## Out of scope (tracked elsewhere)
 
 - Wiring new controls into PopulationSim configs (eqasim-bs; building-type/tenure spec with measure-gain gate; controls = add reliable few + validate, not more=better). Seed expressions for the two new controls: `households.haustyp == 1` ↔ EFH/ZFH category group, `haustyp in (2,3)` ↔ MFH group, `haustyp == 4` ↔ sonstiges (handle 95 = nicht zuzuordnen observably); Seniorenstatus flags precomputed onto the households seed from `HP_ALTER_1..6` (treat 2xx/3xx/9xx missing codes per the MiD handbook missing-code rule).
