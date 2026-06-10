@@ -28,12 +28,16 @@ All paths in the config are resolved relative to the directory that contains the
 Exactly one of `topics` or `tiers` may be specified; specifying both raises an error.
 If neither is specified, the pipeline uses the MiD-controllable default:
 `["Whg_Gebaeudetyp", "HH_Seniorenstatus"]`.
+MiD = Mobilität in Deutschland, the German national household travel survey (2023 edition).
+The default topics are exactly those census attributes that the MiD household data can serve
+as PopulationSim controls for: building type via the geocoded `haustyp` variable
+(`Whg_Gebaeudetyp`) and senior status via household member ages (`HH_Seniorenstatus`).
 
 | Key | Type | Default | Validation | Effect |
 |---|---|---|---|---|
 | `topics` | list of strings, or the literal string `"all"` | *(omit for default)* | Each name must be in `RAW_TOPICS`; `"all"` selects all 14 catalog topics; mutually exclusive with `tiers` | Explicit list of topic names to harmonize |
 | `tiers` | list of integers | *(omit for default)* | Values must be from `{1, 2, 3}`; mutually exclusive with `topics` | Selects all topics belonging to the given tiers |
-| `derived_tenure` | bool | `false` | — | When `true`, runs `run_tenure` after the harmonization stages and appends tenure checks to `run_sanity` |
+| `derived_tenure` | bool | `false` | — | When `true`, runs `run_tenure` after the harmonization stages and appends tenure checks to `run_sanity`. Tenure anchors to the harmonized household total already present in the 100 m INPUT file; it does **not** require any specific topic in `[harmonize].topics`. |
 
 ### `[scope]`
 
@@ -41,6 +45,8 @@ If neither is specified, the pipeline uses the MiD-controllable default:
 |---|---|---|---|---|
 | `mode` | `"national"` or `"subset"` | `"national"` | Exactly one of the two values | `"national"` processes all cells; `"subset"` filters to the given ARS prefixes |
 | `ars_prefixes` | list of strings | `[]` | Required and non-empty when `mode = "subset"`; must be absent (or empty) when `mode = "national"` | ARS-5 codes (2-digit Land + 1-digit Regierungsbezirk + 2-digit Kreis) used to select 1 km parent cells for subset runs |
+
+`mode = "subset"` without `ars_prefixes` (and vice versa: `ars_prefixes` set with `mode = "national"`) raises a `ValueError` at config load, before anything runs.
 
 ### `[run]`
 
@@ -78,8 +84,10 @@ write_manifest = true
 
 ### (b) ZGB subset validation — equivalence gate before national run
 
-Use this pattern to test on the ZGB (Zukunftsregion Gesundheit Bochum) region subset,
-which covers 8 districts in Lower Saxony.
+Use this pattern to test on the ZGB (Zweckverband Großraum Braunschweig — the regional
+association of Braunschweig, covering 8 Kreise in Lower Saxony: Braunschweig 03101,
+Salzgitter 03102, Wolfsburg 03103, Gifhorn 03151, Goslar 03153, Helmstedt 03154,
+Peine 03157, Wolfenbüttel 03158) region subset.
 
 ```toml
 # config_zgb_subset.toml — ZGB subset validation

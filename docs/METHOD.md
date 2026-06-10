@@ -105,7 +105,11 @@ cutoff = t_pc * K                       (t_pc = 5.0, K = number of categories)
 w_i = w_min + (1 - w_min) * min(1, t_i / cutoff)
 ```
 
-With default parameters (`w_min = 0.40`, `t_pc = 5.0`):
+TrustBlend parameters `w_min = 0.40` and `t_pc = 5.0`, and the `DOWNSCALE_KW` iteration
+settings, are fixed in code (`cleancensus/stages.py` / `topics.py`) and deliberately not
+config-exposed, to keep runs comparable across studies.
+
+With these fixed parameters:
 - A cell with 0 households gets `w = 0.40` (40 % local trust).
 - A cell with `5 * K` or more households gets `w = 1.00` (full local trust).
 
@@ -123,7 +127,9 @@ target_ik = w_i * local_ik + (1 - w_i) * (p_k / sum p) * t_i
 where `local_ik` is the raw published category value for child `i`, category `k`.
 
 The current estimate `X[:, k]` is then nudged toward `target_ik` with damping factor
-`alpha` (default 0.85 or 0.90 depending on topic):
+`alpha`, which depends on the topic: `alpha = 0.90` is used for topics with a low category
+count (HH_Seniorenstatus, HH_Familientyp, Pers_Staatsangehoerigkeit, HH_Tenure);
+`alpha = 0.85` is used for all other topics.
 
 ```
 f_ik = (target_ik / X_ik) ** alpha
@@ -216,7 +222,7 @@ q_group = sum_{cells in group with q>0}( q * hh ) / sum_{cells in group with q>0
 
 As a last resort (no cells in the group have a quote), the national HH-weighted mean is used.
 
-In the national v2 run: 12,086 cells were filled from the 10 km group mean, 9 from the
+In the validated national run: 12,086 cells were filled from the 10 km group mean, 9 from the
 national mean.
 
 ### 100 m downscaling
@@ -226,19 +232,22 @@ available, with 1 km parent totals used as the downscaling target via the same
 `downscale_topic` mechanism.
 Cells with no local quote signal receive their allocation purely from the 1 km parent shares.
 
-In the national v2 run, 471,752 cells had no local 100 m quote and were filled from parent
-shares.
+In the validated national run, 471,752 cells had no local 100 m quote and were filled from
+parent shares.
 
 ### Universe and anchor
 
 Tenure is anchored to `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts_*_adj`
-(the harmonized household total).
-This is the same anchor as `HH_Seniorenstatus`; the equality
-`EigentuemerHH + MieterHH == HH_adj == Seniorenstatus_adj` is checked by `run_sanity`.
+(the harmonized household total), which is already present in the 100 m INPUT file from the
+original notebook harmonization. Tenure therefore does **not** require any specific topic
+to be listed in `[harmonize].topics` — it can be enabled with `derived_tenure = true`
+independently of which topics are harmonized in the current run.
+The equality `EigentuemerHH + MieterHH == HH_adj == Seniorenstatus_adj` is checked by
+`run_sanity` when `HH_Seniorenstatus` is also in the run; otherwise only the
+`EigentuemerHH + MieterHH == HH_adj` check applies.
 
-The 4 orphan cells where `|owner + renter - Seniorenstatus_adj| > 0.5` are a known
-benign artifact (they deviate by at most 3 households) and are reported as INFO, not
-as failures.
+The 4 orphan cells where `|owner + renter - HH_adj| > 0.5` are a known benign artifact
+(they deviate by at most 3 households) and are reported as INFO, not as failures.
 
 **Invariant:** for non-orphan cells, `EigentuemerHH + MieterHH == HH_adj` exactly
 (max abs deviation < 0.5).

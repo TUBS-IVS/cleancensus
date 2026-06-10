@@ -5,7 +5,30 @@ and important caveats about data quality and licensing.
 
 ---
 
-## Input files
+## Raw source data
+
+The ultimate data source is the **Zensus 2022 grid data** published by the Statistische Ämter
+des Bundes und der Länder under the **dl-de/by-2-0** licence.
+Download the "Ergebnisse auf Gitterzellenebene" CSVs from
+[www.zensus2022.de](https://www.zensus2022.de).
+Attribution required: *Datenquelle: Statistische Ämter des Bundes und der Länder, Zensus 2022*.
+
+## Pipeline input files (derived intermediates)
+
+The three files consumed by cleancensus are **derived artifacts** produced by the archived
+notebooks from the raw Zensus 2022 grid CSVs — they are NOT directly downloadable from
+zensus2022.de. The derivation sequence is:
+
+1. `notebooks_archive/data_prep.ipynb` — merges raw CSVs, constructs 10 km cell table
+2. `notebooks_archive/ages.ipynb` — computes single-year age columns
+3. `notebooks_archive/gender.ipynb` — adds gender split columns at 100 m
+4. `notebooks_archive/other_binned_data.ipynb` — adds remaining binned topic columns
+
+Each notebook run takes multiple hours on a full national dataset.
+**The derived input files are not publicly hosted yet.**
+To reproduce them from scratch, run the archived notebooks in the order above on the raw
+grid CSVs. To obtain the prepared files directly, contact the authors (see `CITATION.cff`).
+*(Archival on Zenodo is planned as future work.)*
 
 Place these three files in `data/inputs/` (or the directory configured as `inputs_dir`).
 
@@ -90,8 +113,8 @@ cells. A zero `Eigentuemerquote` therefore unambiguously means the value is miss
 
 ### Orphan cell tenure deviation
 
-In the national v2 run, 4 orphan cells deviate by more than 0.5 households from their
-`Seniorenstatus_adj` anchor (maximum deviation: 3 households).
+In the validated national run (legacy v2+v3 artifacts), 4 orphan cells deviate by more than
+0.5 households from their tenure anchor (maximum deviation: 3 households).
 This is a known benign artifact of the orphan imputation order and is reported as INFO,
 not as a sanity failure.
 

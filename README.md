@@ -78,11 +78,14 @@ flowchart LR
 ## Quickstart
 
 ```bash
+# 0. Install uv (https://docs.astral.sh/uv/getting-started/installation/)
+#    then clone this repo.
+
 # 1. Install dependencies (Python >= 3.13 required)
 uv sync
 
 # 2. Place the three input files in data/inputs/
-#    (see the Data section below for file names)
+#    (see the Data section below for file names and how to obtain them)
 
 # 3. Copy and edit the config
 cp config.example.toml config.toml
@@ -93,7 +96,14 @@ uv run cleancensus --config config.toml --dry-run
 
 # 5. Run the full pipeline
 uv run cleancensus --config config.toml
+
+# Use --help to see all options
+uv run cleancensus --help
 ```
+
+**Hardware note:** the 100 m stage streams the 7.7 GB input in 1 M-row batches; peak RAM
+~4–6 GB; a full national run with the default 2 topics + tenure takes approximately 2–4 h
+on a desktop CPU.
 
 Outputs land in `data/outputs/` (or wherever `outputs_dir` points):
 - `cells_1km_with_binneds_<version_tag>.parquet`
@@ -121,13 +131,19 @@ Full documentation: [`docs/CONFIG.md`](docs/CONFIG.md).
 
 If neither `topics` nor `tiers` is specified, the pipeline uses the MiD-controllable default:
 `["Whg_Gebaeudetyp", "HH_Seniorenstatus"]`.
+MiD = Mobilität in Deutschland, the German national household travel survey (2023 edition).
+The default topics are exactly those census attributes that the MiD household data can serve
+as PopulationSim controls for: building type via the geocoded `haustyp` variable
+(`Whg_Gebaeudetyp`) and senior status via household member ages (`HH_Seniorenstatus`).
 
 ---
 
 ## Validated reference results
 
-The following numbers were produced by the national v2 run with
-`topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"]` and `derived_tenure = true`.
+The following numbers were produced by the validated national run
+(legacy v2+v3 artifacts: v2 = topic harmonization, v3 = v2 + tenure;
+in the new pipeline a single run with `derived_tenure = true` produces both in one `version_tag`)
+with `topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"]` and `derived_tenure = true`.
 Use them as a sanity check when reproducing the results.
 
 | Metric | Value |
@@ -142,7 +158,7 @@ Use them as a sanity check when reproducing the results.
 | 1 km cells filled from 10 km group mean (tenure) | 12,086 |
 | 1 km cells filled from national mean (tenure) | 9 |
 | 100 m no-signal cells filled from parent share | 471,752 |
-| Orphan cells deviating > 3 HH from anchor | 4 (benign, documented) |
+| Orphan cells deviating > 0.5 HH from tenure anchor (max 3 HH) | 4 (benign, documented) |
 | ZGB equivalence gate worst max\|d\| | 3.05e-05 (float32 noise) |
 | ZGB raw totals vs legacy | bit-exact |
 
@@ -170,10 +186,31 @@ Use them as a sanity check when reproducing the results.
 
 ## Data
 
-The three input files are NOT included in this repository (size and licensing).
-Obtain them from [www.zensus2022.de](https://www.zensus2022.de) and place them in `data/inputs/`.
-The data are published by Statistische Ämter des Bundes und der Länder under the
-**dl-de/by-2-0** licence; attribution is required.
+### Raw source
+
+The ultimate source is the **Zensus 2022 grid data** published by the Statistische Ämter des
+Bundes und der Länder under the **dl-de/by-2-0** licence.
+Download the "Ergebnisse auf Gitterzellenebene" CSVs from
+[www.zensus2022.de](https://www.zensus2022.de).
+Attribution required: *Datenquelle: Statistische Ämter des Bundes und der Länder, Zensus 2022*.
+
+### Pipeline inputs (derived intermediates)
+
+The three files consumed by cleancensus are **NOT** the raw Zensus CSVs — they are derived
+artifacts produced by running the archived notebooks on those raw CSVs, in this order:
+
+1. `notebooks_archive/data_prep.ipynb` — merges raw topic tables, builds 10 km pickle
+2. `notebooks_archive/ages.ipynb` — adds single-year age columns
+3. `notebooks_archive/gender.ipynb` — adds gender split columns at 100 m
+4. `notebooks_archive/other_binned_data.ipynb` — adds remaining binned topic columns
+
+These multi-hour notebook runs are the only way to reproduce the inputs from scratch.
+**The derived input files are not publicly hosted yet.**
+To reproduce from scratch, run the archived notebooks on the raw grid CSVs.
+To obtain the prepared files directly, contact the authors (see `CITATION.cff`).
+*(Archival on Zenodo is planned as future work.)*
+
+Place the three derived files in `data/inputs/` before running the pipeline.
 
 | File | Shape | Content |
 |---|---|---|
