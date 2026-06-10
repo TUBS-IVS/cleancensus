@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the software and the paper below."
+type: software
+title: "cleancensus"
+version: 1.0.0
+license: GPL-3.0-or-later
+repository-code: "https://github.com/lassebienzeisler/cleancensus"
+abstract: >
+  cleancensus harmonizes the German Zensus 2022 multi-scale grid data
+  (100 m / 1 km / 10 km) into consistent, analysis-ready cell tables.
+  It resolves cross-level inconsistencies and the category-total mismatch
+  introduced by disclosure-control perturbation using trust-blended iterative
+  proportional fitting (IPF) and a hierarchical downscaling algorithm.
+authors:
+  - family-names: Petre
+    given-names: Flavius
+  - family-names: Bienzeisler
+    given-names: Lasse
+  - family-names: Friedrich
+    given-names: Bernhard
+
+preferred-citation:
+  type: article
+  title: >
+    A Framework for Harmonizing and Enriching Multi-Scale Census Grids:
+    Application to Germany's 2022 Census Data
+  authors:
+    - family-names: Petre
+      given-names: Flavius
+    - family-names: Bienzeisler
+      given-names: Lasse
+    - family-names: Friedrich
+      given-names: Bernhard
+  journal: "Procedia Computer Science"
+  volume: 280
+  start: 965
+  end: 970
+  year: 2026
+  doi: "10.1016/j.procs.2026.04.122"

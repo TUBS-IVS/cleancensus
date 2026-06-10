@@ -1,7 +1,8 @@
 [project]
 name = "cleancensus"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "Harmonization of German Zensus 2022 grid data into consistent multi-scale cell tables for synthetic population generation"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.13"
 dependencies = [
     "chainsolvers>=0.1.0",
