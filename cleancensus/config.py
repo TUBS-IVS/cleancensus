@@ -21,6 +21,9 @@ class Config:
     # [run]
     sanity: str                # "fail" | "warn" | "skip"
     write_manifest: bool
+    # [stages] — on/off switches for the data-producing stages (full raw->final pipeline).
+    # tenure is controlled by [harmonize].derived_tenure, sanity by [run].sanity.
+    stages: dict             # {stage_name: bool} over PRODUCER_STAGES
     config_path: Path = field(compare=False)
 
     # canonical input file names (fixed contract)
@@ -46,6 +49,30 @@ class Config:
             "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_"
             f"{self.version_tag}.parquet"
         )
+
+
+# Data-producing stages, in execution order. The first 8 cover the full path from the
+# raw Zensus 2022 grid CSVs to the prepared 100m cell table (ported from the archived
+# notebooks); "extend" is the additional-topics harmonization. tenure/sanity are NOT
+# here (driven by [harmonize].derived_tenure and [run].sanity respectively).
+PRODUCER_STAGES = (
+    "merge", "totals", "ages", "gemeinde", "gender", "topics8", "aggs", "regiostar",
+    "extend",
+)
+
+
+def _resolve_stages(stages_cfg: dict) -> dict:
+    unknown = set(stages_cfg) - set(PRODUCER_STAGES)
+    if unknown:
+        raise ValueError(
+            f"[stages] unknown stage(s): {sorted(unknown)}; valid: {list(PRODUCER_STAGES)}")
+    # default: only the additional-topics harmonization runs (today's behavior); the
+    # raw->prepared stages are off until explicitly enabled (they consume raw CSVs).
+    resolved = {s: False for s in PRODUCER_STAGES}
+    resolved["extend"] = True
+    for name, on in stages_cfg.items():
+        resolved[name] = bool(on)
+    return resolved
 
 
 def _resolve_topics(harmonize: dict) -> list[str]:
@@ -111,5 +138,6 @@ def load_config(path: str | Path) -> Config:
         ars_prefixes=ars,
         sanity=sanity,
         write_manifest=bool(run.get("write_manifest", True)),
+        stages=_resolve_stages(raw.get("stages", {})),
         config_path=path,
     )

@@ -3,6 +3,8 @@
 Usage:
   uv run cleancensus --config config.toml
   uv run cleancensus --config config.toml --dry-run
+  uv run cleancensus --config config.toml --force
+  uv run cleancensus --config config.toml --from gender
 """
 from __future__ import annotations
 
@@ -10,11 +12,11 @@ import argparse
 import json
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 
 from cleancensus import __version__
 from cleancensus.config import load_config
+from cleancensus.pipeline import plan, run_pipeline
 
 
 def _git_sha() -> str:
@@ -26,57 +28,34 @@ def _git_sha() -> str:
         return "unknown"
 
 
-def _plan(cfg) -> list[str]:
-    steps = ["stage_a (10km -> 1km)", "stage_b (1km -> 100m)"]
-    if cfg.derived_tenure:
-        steps.append("tenure (owner/renter from Eigentuemerquote)")
-    if cfg.sanity != "skip":
-        steps.append(f"sanity (mode={cfg.sanity})")
-    return steps
-
-
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="cleancensus")
     ap.add_argument("--config", required=True, help="path to the TOML config")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the resolved plan and exit")
+    ap.add_argument("--force", action="store_true",
+                    help="re-run enabled stages even if their output already exists")
+    ap.add_argument("--from", dest="from_stage", default=None,
+                    help="run from this stage onward (earlier enabled stages are skipped)")
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
+    steps = plan(cfg, force=args.force, from_stage=args.from_stage)
 
     print(f"cleancensus {__version__} | config: {cfg.config_path}")
     print(f"  scope   : {cfg.mode}"
           + (f" (ars_prefixes={cfg.ars_prefixes})" if cfg.mode == "subset" else ""))
     print(f"  topics  : {cfg.topics}")
-    print(f"  tenure  : {cfg.derived_tenure}")
+    print(f"  tenure  : {cfg.derived_tenure} | sanity: {cfg.sanity}")
     print(f"  outputs : {cfg.out_1.name}, {cfg.out_100.name} (dir: {cfg.outputs_dir})")
-    for i, step in enumerate(_plan(cfg), 1):
-        print(f"  step {i} : {step}")
+    print("  plan:")
+    for i, step in enumerate(steps, 1):
+        print(f"    {i:>2}. {step['name']:<10} [{step['action']:<13}] {step['desc']}")
     if args.dry_run:
         return 0
 
-    from cleancensus.sanity import run_sanity
-    from cleancensus.stages import run_stage_a, run_stage_b
-    from cleancensus.tenure import run_tenure
-
     started = datetime.now(timezone.utc).isoformat()
-    timings: dict[str, float] = {}
-
-    def timed(name, fn):
-        t0 = time.perf_counter()
-        fn(cfg)
-        timings[name] = round(time.perf_counter() - t0, 1)
-
-    timed("stage_a", run_stage_a)
-    timed("stage_b", run_stage_b)
-    if cfg.derived_tenure:
-        timed("tenure", run_tenure)
-
-    failures = 0
-    if cfg.sanity != "skip":
-        t0 = time.perf_counter()
-        failures = run_sanity(cfg)
-        timings["sanity"] = round(time.perf_counter() - t0, 1)
+    timings, failures = run_pipeline(cfg, force=args.force, from_stage=args.from_stage)
 
     if cfg.write_manifest:
         manifest = {
@@ -90,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
                 "mode": cfg.mode,
                 "ars_prefixes": cfg.ars_prefixes,
                 "sanity": cfg.sanity,
+                "stages": cfg.stages,
             },
             "started_utc": started,
             "finished_utc": datetime.now(timezone.utc).isoformat(),
