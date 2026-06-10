@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Verbatim extraction of other_binned_data.ipynb cell 1 (machinery only).
+Verbatim extraction of notebooks_archive/other_binned_data.ipynb cell 1 (machinery only).
 Do NOT edit logic here; this is the reference implementation already used
 for the 8 existing harmonized topics. Driver: extend_topics.py
 Generic hierarchical downscaling for NON-AGE categorical vectors.

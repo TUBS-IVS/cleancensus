@@ -18,15 +18,15 @@ repo makes them consistent:
    100m category vectors so that per cell `sum(categories) == adjusted total` and the
    1km category margins are respected. Adjusted totals get an `_adj` suffix.
 4. **Orphan handling**: 100m cells without a 1km parent get prior-based imputation.
-5. **Single-year ages + gender**: separate pipeline (`ages.ipynb`, `gender.ipynb`)
+5. **Single-year ages + gender**: separate pipeline (`notebooks_archive/ages.ipynb`, `notebooks_archive/gender.ipynb`)
    produces `AGE_0..`, `M_AGE_*`, `F_AGE_*` columns.
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| `*.ipynb` | Original pipeline notebooks (reference implementation; run history preserved) |
-| `harmonization.py` | The downscaling machinery, extracted verbatim from `other_binned_data.ipynb` |
+| `notebooks_archive/` | Original pipeline notebooks (reference implementation; run history preserved) |
+| `harmonization.py` | The downscaling machinery, extracted verbatim from `notebooks_archive/other_binned_data.ipynb` |
 | `new_topics.py` | Spec catalog of additional topics; default scope = topics controllable via MiD household data (`Whg_Gebaeudetyp`, `HH_Seniorenstatus`) |
 | `extend_topics.py` | Driver: `stage_a` (10km→1km), `stage_b` (1km→100m, streamed over the 7.7 GB file) |
 | `sanity_extend.py` | Post-run invariant checks (exit code 0 = pass) |
@@ -57,7 +57,7 @@ Inputs are NOT in this repo (size + Zensus licensing). Required in `data/inputs/
 
 | File | Source |
 |---|---|
-| `df10_with_single_years.pickle` | 10km merged Zensus tables (from `data_prep.ipynb`) |
+| `df10_with_single_years.pickle` | 10km merged Zensus tables (from `notebooks_archive/data_prep.ipynb`) |
 | `cells_1km_with_binneds.parquet` | 1km cells incl. previous harmonization run |
 | `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` | the prepared 100m cell table (3.15M cells × 570 cols, all Germany) |
 

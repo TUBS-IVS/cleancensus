@@ -1,6 +1,6 @@
 """Spec catalog for the additional topics to harmonize (extends the original 8).
 
-Naming convention identical to other_binned_data.ipynb: base names carry the
+Naming convention identical to notebooks_archive/other_binned_data.ipynb: base names carry the
 10km suffix; levelize() swaps the suffix per level. Each topic keeps its OWN
 total chain (universes differ; see the plan's Background section).
 
