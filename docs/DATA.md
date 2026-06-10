@@ -41,6 +41,9 @@ up to the published totals and the three levels disagree (the problem this pipel
 - **Licence:** Open Data License Germany – Attribution 2.0 (**dl-de/by-2-0**).
 - **Attribution:** census content — *© Statistische Ämter des Bundes und der Länder, Zensus
   2022*; grid geometry — *© GeoBasis-DE / BKG 2023* (https://www.bkg.bund.de).
+- **Automated download:** see [docs/RAW_DOWNLOAD.md](RAW_DOWNLOAD.md) for the manifest-driven
+  downloader (`tools/download_zensus_grid.py`) that fetches and unzips the ZIPs into
+  `data/raw/csv/` for consumption by the merge stage.
 
 ## Pipeline input files (derived from the raw grid, step by step)
 

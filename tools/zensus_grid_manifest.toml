@@ -1,0 +1,151 @@
+# Raw Zensus 2022 grid-data download manifest.
+# base + slug + blob suffix -> candidate ZIP URL.  Run tools/download_zensus_grid.py --probe
+# to check which candidates resolve (the portal is a JS app; exact zip slugs may differ from
+# the description-file slugs and must be verified/completed here against the live portal:
+#   https://www.zensus2022.de/DE/Ergebnisse-des-Zensus/gitterzellen.html
+#
+# Licence:  dl-de/by-2-0
+# Attribution:
+#   Census content:  © Statistische Ämter des Bundes und der Länder, Zensus 2022
+#   Grid geometry:   © GeoBasis-DE / BKG 2023 (https://www.bkg.bund.de)
+
+base = "https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Bevoelkerung/Zensus2022/Publikationen/Downloads-Publikationen/Gitterdaten"
+blob = "?__blob=publicationFile"
+
+# ---------------------------------------------------------------------------
+# CONFIRMED slugs (description xlsx files for these were verified live on the
+# Destatis download server; zip slugs are the same or very close):
+# ---------------------------------------------------------------------------
+
+[[topic]]
+name    = "wohnungen_zahl_raeume"
+zip     = "wohnungen_zahl_raeume.zip"
+# Pipeline column group: Raeume (Wohnungen-A universe)
+
+[[topic]]
+name    = "gebaeude_mikrozensusklassen"
+zip     = "gebaeude_mikrozensusklassen.zip"
+# Pipeline column group: Geb_Gebaeudetyp / Geb_AnzahlWohnungen (building type by Mikrozensus class)
+
+[[topic]]
+name    = "wohnungen_gebaeude_zensus2011"
+zip     = "wohnungen_gebaeude_zensus2011.zip"
+# Pipeline column group: cross-tabulation Wohnungen × Gebäude, 2011 reference
+
+[[topic]]
+name    = "auslaenderanteil_eu_nicht_eu"
+zip     = "auslaenderanteil_eu_nicht_eu.zip"
+# Pipeline column group: Pers_Staatsangehoerigkeit / Pers_StaatsangGruppen (foreigners: EU / non-EU)
+
+[[topic]]
+name    = "gebaeude_wohnraum_gebaeudetyp_groesse"
+zip     = "gebaeude_wohnraum_gebaeudetyp_groesse.zip"
+# Pipeline column group: Geb_Gebaeudetyp (buildings by type & size)
+
+# ---------------------------------------------------------------------------
+# TODO entries — slugs unknown, must be looked up on the live portal:
+#   https://www.zensus2022.de/DE/Ergebnisse-des-Zensus/gitterzellen.html
+# Leave zip = "" to have the downloader/probe skip them gracefully.
+# ---------------------------------------------------------------------------
+
+[[topic]]
+name    = "einwohner"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline uses: population total (Einwohner) — the 100 m table is ~315 MB
+
+[[topic]]
+name    = "alter_10er_jahresgruppen"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline uses: Alter in 10-Jahres-Gruppen (broad age bins)
+
+[[topic]]
+name    = "alter_5_klassen"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline uses: Alter in 5 Klassen
+
+[[topic]]
+name    = "durchschnittsalter"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline uses: Durchschnittsalter (mean age per cell)
+
+[[topic]]
+name    = "familienstand"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Familienstand (marital status)
+
+[[topic]]
+name    = "geburtsland"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Geburtsland (country of birth)
+
+[[topic]]
+name    = "staatsangehoerigkeit"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Pers_Staatsangehoerigkeit (citizenship groups)
+
+[[topic]]
+name    = "religion"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Pers_Religion
+
+[[topic]]
+name    = "haushalte_groesse"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Haushaltsgroesse (household size)
+
+[[topic]]
+name    = "haushalte_typ_lebensform_seniorenstatus"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column groups: HH_Familientyp / HH_Seniorenstatus / Lebensform
+
+[[topic]]
+name    = "familien_typ_groesse"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column groups: Fam_Groesse / Fam_TypNachKindern
+
+[[topic]]
+name    = "gebaeude_baujahr"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Geb_Baujahr
+
+[[topic]]
+name    = "gebaeude_energietraeger"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Geb_Energietraeger
+
+[[topic]]
+name    = "gebaeude_heizungsart"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Whg_Heizungsart
+
+[[topic]]
+name    = "wohnungen_wohnflaeche"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline column group: Wohnflaeche (floor area, Wohnungen-A universe)
+
+[[topic]]
+name    = "eigentuemerquote"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline: Eigentuemerquote ratio (owner-occupancy rate, drives derived_tenure)
+
+[[topic]]
+name    = "nettokaltmiete"
+zip     = ""
+# TODO: slug unknown — fill from portal
+# Pipeline: Nettokaltmiete (net cold rent per m²)
