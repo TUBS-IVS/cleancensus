@@ -1,0 +1,7 @@
+data/
+*.parquet
+*.pickle
+zgb_parents.csv
+stage_b_national.log
+_cell*.py
+.idea/
