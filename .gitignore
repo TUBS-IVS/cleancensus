@@ -5,3 +5,4 @@ zgb_parents.csv
 stage_b_national.log
 _cell*.py
 .idea/
+__pycache__/
