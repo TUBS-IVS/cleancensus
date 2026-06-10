@@ -13,6 +13,16 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 
+[project.scripts]
+cleancensus = "cleancensus.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
