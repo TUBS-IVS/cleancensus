@@ -17,11 +17,11 @@ def test_registry_order_and_completeness():
         "merge", "totals", "ages", "gemeinde", "gender", "topics8",
         "aggs", "regiostar", "extend", "tenure", "sanity",
     )
-    # the 8 raw->prepared stages are not yet implemented; extend/tenure/sanity are
+    # the raw->prepared stages: topics8 is now implemented; the rest are not yet
     impl = {s.name: s.implemented for s in REGISTRY}
-    assert impl["extend"] and impl["tenure"] and impl["sanity"]
+    assert impl["extend"] and impl["tenure"] and impl["sanity"] and impl["topics8"]
     assert not any(impl[n] for n in ("merge", "totals", "ages", "gemeinde",
-                                     "gender", "topics8", "aggs", "regiostar"))
+                                     "gender", "aggs", "regiostar"))
 
 
 def test_default_plan_only_extend_runs(tmp_path):

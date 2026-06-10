@@ -85,7 +85,7 @@ REGISTRY: tuple[Stage, ...] = (
     Stage("gender", "male/female age split at 100m + orphan backfill",
           _producer_enabled("gender"), _not_implemented("gender", "R5"), implemented=False),
     Stage("topics8", "harmonize the 8 original categorical topics + orphan pass",
-          _producer_enabled("topics8"), _not_implemented("topics8", "R2"), implemented=False),
+          _producer_enabled("topics8"), None),  # run set below
     Stage("aggs", "M_AGE/F_AGE binned aggregate columns",
           _producer_enabled("aggs"), _not_implemented("aggs", "R6"), implemented=False),
     Stage("regiostar", "join RegioStaR 2022 classification",
@@ -98,6 +98,16 @@ REGISTRY: tuple[Stage, ...] = (
           lambda cfg: cfg.sanity != "skip", None,
           lambda cfg: False),  # run set below; never cached
 )
+
+
+def _run_topics8(cfg: Config):
+    from cleancensus.topics8 import run_topics8
+    run_topics8(cfg)
+
+
+def _topics8_complete(cfg: Config) -> bool:
+    out_100 = cfg.work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
+    return out_100.exists()
 
 
 def _run_extend(cfg: Config):
@@ -117,9 +127,18 @@ def _run_sanity(cfg: Config) -> int:
 
 
 # wire the implemented run callables (kept out of the literal to avoid import cost on import)
-_RUN = {"extend": _run_extend, "tenure": _run_tenure, "sanity": _run_sanity}
+_RUN = {
+    "topics8": _run_topics8,
+    "extend": _run_extend,
+    "tenure": _run_tenure,
+    "sanity": _run_sanity,
+}
+_IS_COMPLETE = {
+    "topics8": _topics8_complete,
+}
 REGISTRY = tuple(
-    Stage(s.name, s.desc, s.enabled, _RUN.get(s.name, s.run), s.is_complete, s.implemented)
+    Stage(s.name, s.desc, s.enabled, _RUN.get(s.name, s.run),
+          _IS_COMPLETE.get(s.name, s.is_complete), s.implemented)
     for s in REGISTRY
 )
 

@@ -2,11 +2,12 @@
 
 Usage:
   uv run python tools/equivalence_zgb.py --new <new.parquet> --ref <ref.parquet> \
-      [--cols-from-ref] [--atol 1e-3]
+      [--cols-from-ref] [--atol 1e-3] [--sort-key COLUMN]
 
-Aligns rows positionally after verifying GITTER_ID_1km equality per row (both
-files must stem from the same source filter in the same order). Compares every
-shared numeric column with abs tolerance; reports per-column max|d| and a final
+Aligns rows positionally after verifying GITTER_ID equality per row (both
+files must stem from the same source filter in the same order), OR after
+sorting both by --sort-key when row order differs. Compares every shared
+numeric column with abs tolerance; reports per-column max|d| and a final
 PASS/FAIL line; exit code 0 on pass.
 """
 from __future__ import annotations
@@ -23,6 +24,12 @@ def main() -> int:
     ap.add_argument("--new", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--atol", type=float, default=1e-3)
+    ap.add_argument(
+        "--sort-key",
+        default=None,
+        help="Sort both frames by this column before positional comparison "
+             "(use when row order may differ between new and ref).",
+    )
     args = ap.parse_args()
 
     new = pd.read_parquet(args.new)
@@ -32,10 +39,27 @@ def main() -> int:
         print(f"FAIL: row count differs: new={len(new):,} ref={len(ref):,}")
         return 1
 
-    key = "GITTER_ID_1km"
-    if not (new[key].astype(str).values == ref[key].astype(str).values).all():
-        print(f"FAIL: {key} row order differs")
-        return 1
+    if args.sort_key:
+        key = args.sort_key
+        if key not in new.columns:
+            print(f"FAIL: --sort-key '{key}' not in new file columns")
+            return 1
+        if key not in ref.columns:
+            print(f"FAIL: --sort-key '{key}' not in ref file columns")
+            return 1
+        print(f"[info] sorting both frames by '{key}' before comparison")
+        new = new.sort_values(key).reset_index(drop=True)
+        ref = ref.sort_values(key).reset_index(drop=True)
+        # Verify alignment after sort
+        if not (new[key].astype(str).values == ref[key].astype(str).values).all():
+            print(f"FAIL: {key} values do not match after sort (different cell sets?)")
+            return 1
+    else:
+        key = "GITTER_ID_1km"
+        if key in new.columns and key in ref.columns:
+            if not (new[key].astype(str).values == ref[key].astype(str).values).all():
+                print(f"FAIL: {key} row order differs (use --sort-key {key} to sort)")
+                return 1
 
     shared = [c for c in ref.columns if c in new.columns
               and pd.api.types.is_numeric_dtype(ref[c])

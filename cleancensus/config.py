@@ -40,6 +40,13 @@ class Config:
         return self.inputs_dir / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
 
     @property
+    def work_dir(self) -> Path:
+        """Directory for chained intermediate artifacts of the full raw->prepared pipeline
+        (S1..S8). Each producer stage reads its predecessor's output here and writes its own.
+        Defaults to a sibling of inputs_dir so it is gitignored under data/."""
+        return self.inputs_dir.parent / "work"
+
+    @property
     def out_1(self) -> Path:
         return self.outputs_dir / f"cells_1km_with_binneds_{self.version_tag}.parquet"
 
