@@ -17,12 +17,13 @@ def test_registry_order_and_completeness():
         "merge", "totals", "ages", "gemeinde", "gender", "topics8",
         "aggs", "regiostar", "extend", "tenure", "sanity",
     )
-    # implemented stages (R6: aggs + regiostar now implemented alongside topics8/extend)
+    # implemented stages (R3: merge; R6: aggs + regiostar + topics8 + extend)
     impl = {s.name: s.implemented for s in REGISTRY}
+    assert impl["merge"]  # R3: z22data ingest path
     assert impl["extend"] and impl["tenure"] and impl["sanity"]
     assert impl["topics8"] and impl["aggs"] and impl["regiostar"]
-    # not yet implemented (R3-R5)
-    assert not any(impl[n] for n in ("merge", "totals", "ages", "gemeinde", "gender"))
+    # not yet implemented (R3-R5 remaining)
+    assert not any(impl[n] for n in ("totals", "ages", "gemeinde", "gender"))
 
 
 def test_default_plan_only_extend_runs(tmp_path):
@@ -51,21 +52,21 @@ def test_enabled_unimplemented_stage_is_planned(tmp_path):
 def test_from_window_skips_earlier_even_if_enabled(tmp_path):
     cfg = _cfg(tmp_path, """
         [stages]
-        merge = true
+        totals = true
         gender = true
     """)
     actions = {s["name"]: s["action"] for s in plan(cfg, from_stage="gender")}
-    assert actions["merge"] == "skip-cached"   # before the window, not "planned"
+    assert actions["totals"] == "skip-cached"  # before the window, not "planned"
     assert actions["gender"] == "planned"      # in window, still unimplemented
 
 
 def test_run_pipeline_raises_on_enabled_unimplemented(tmp_path):
     cfg = _cfg(tmp_path, """
         [stages]
-        merge = true
+        totals = true
         extend = false
     """)
-    with pytest.raises(NotImplementedError, match="merge"):
+    with pytest.raises(NotImplementedError, match="totals"):
         run_pipeline(cfg)
 
 

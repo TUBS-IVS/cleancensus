@@ -198,13 +198,18 @@ reports population, household, building and dwelling attributes. Small counts ar
 and suppressed for privacy, which is precisely why category counts don't sum to the totals
 and the levels disagree — the problem this pipeline fixes.
 
-- **Download:** Zensus 2022 → *Gitterdaten zum Download für GIS* via
+- **Default ingest (merge stage):** the `merge` stage downloads directly from the
+  [z22data GitHub mirror](https://github.com/JsLth/z22data) by Jonas Lieth
+  ([z22 R package](https://github.com/JsLth/z22)) — stable Parquet URLs, same dl-de/by-2-0
+  licence, no portal navigation required. Enable with `[stages] merge = true` in your config.
+- **Manual alternative:** Zensus 2022 → *Gitterdaten zum Download für GIS* via
   [www.zensus2022.de](https://www.zensus2022.de) (*Ergebnisse → Gitterzellenbasierte
   Ergebnisse*; currently hosted on
   [Destatis](https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Bevoelkerung/Zensus2022/Publikationen/))
   — ZIP archives of CSV tables for the 100 m / 1 km / 10 km grids.
 - **Licence:** dl-de/by-2-0. **Attribution:** census content — *© Statistische Ämter des
-  Bundes und der Länder, Zensus 2022*; grid geometry — *© GeoBasis-DE / BKG 2023*.
+  Bundes und der Länder, Zensus 2022*; grid geometry — *© GeoBasis-DE / BKG 2023*;
+  z22data mirror — *Jonas Lieth / z22data*.
 
 See [docs/DATA.md](docs/DATA.md) for the full grid explanation and column dictionary.
 

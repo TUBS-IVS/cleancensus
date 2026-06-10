@@ -1,5 +1,46 @@
 # Downloading Raw Zensus 2022 Grid Data
 
+---
+
+## Recommended: z22data mirror (default merge stage)
+
+The `merge` stage now ingests directly from the **z22data GitHub mirror** by Jonas Lieth —
+a stable, machine-readable distribution of the Zensus 2022 grid data as Parquet files,
+requiring no manual portal navigation or ZIP unpacking.
+
+| | |
+|---|---|
+| **z22data repo** | https://github.com/JsLth/z22data |
+| **z22 R package** | https://github.com/JsLth/z22 |
+| **URL pattern** | `https://raw.githubusercontent.com/JsLth/z22data/main/z22_data_{level}/{feature}_{cat}.parquet` |
+| **Levels** | `10km`, `1km`, `100m` |
+| **Format** | Parquet, columns `x`/`y` (INSPIRE midpoints, EPSG:3035 m) + `value` |
+| **License** | **dl-de/by-2-0** (same as original Destatis data) |
+
+**Credit:** Jonas Lieth's [z22](https://github.com/JsLth/z22) / [z22data](https://github.com/JsLth/z22data)
+project provides the Parquet conversion and hosting that makes this ingest path possible.
+
+**Attribution** (required for any publication or data product):
+> Census content: **© Statistische Ämter des Bundes und der Länder, Zensus 2022**
+> Grid geometry: **© GeoBasis-DE / BKG 2023** (<https://www.bkg.bund.de>)
+> z22data mirror: Jonas Lieth (<https://github.com/JsLth/z22>)
+
+Enable the merge stage in your config to have the pipeline download and assemble the grid
+automatically:
+
+```toml
+[stages]
+merge = true
+```
+
+Downloads are cached in `data/raw/z22/` (gitignored). Re-runs are skipped if files exist.
+See [`docs/Z22_GATE_REPORT.md`](Z22_GATE_REPORT.md) for the validation of this ingest path
+against the notebook-era reference merges.
+
+---
+
+## Alternative: Destatis portal (manual download)
+
 This page explains how to obtain the official Zensus 2022 grid-cell CSVs that the
 cleancensus pipeline processes.  Everything is handled by a single tool script;
 no third-party packages are required.

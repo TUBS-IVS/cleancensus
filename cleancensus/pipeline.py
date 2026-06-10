@@ -12,12 +12,13 @@ notebooks is not finished yet are marked ``implemented=False`` and raise a clear
 only if a config actually enables them — so the framework is complete and honest while
 the heavy raw->prepared stages are still being ported.
 
-Implemented raw->prepared stages (R6):
+Implemented raw->prepared stages (R3, R6):
+  - merge     : ingest from z22data GitHub mirror (JsLth), build merged per-level tables (R3)
   - topics8   : port of notebooks_archive/other_binned_data.ipynb
   - aggs      : decade-binned gendered age aggregates + totals (reconstructed, R6)
   - regiostar : BBSR RegioStaR 2022 municipality classification join (reconstructed, R6)
 
-Not yet implemented: merge, totals, ages, gemeinde, gender (R3-R5).
+Not yet implemented: totals, ages, gemeinde, gender (R3-R5).
 
 tenure and sanity are not "producer" stages: tenure is gated by
 ``[harmonize].derived_tenure`` and sanity by ``[run].sanity`` (skip = off).
@@ -81,8 +82,8 @@ def _producer_enabled(name: str):
 
 
 REGISTRY: tuple[Stage, ...] = (
-    Stage("merge", "raw grid CSVs -> merged per-level tables (10km/1km/100m)",
-          _producer_enabled("merge"), _not_implemented("merge", "R3"), implemented=False),
+    Stage("merge", "z22data parquets -> merged per-level tables (10km/1km/100m)",
+          _producer_enabled("merge"), None),  # run set below
     Stage("totals", "reconcile population totals across levels (cross-level IPF)",
           _producer_enabled("totals"), _not_implemented("totals", "R3"), implemented=False),
     Stage("ages", "single-year age columns AGE_0..AGE_100",
@@ -105,6 +106,16 @@ REGISTRY: tuple[Stage, ...] = (
           lambda cfg: cfg.sanity != "skip", None,
           lambda cfg: False),  # run set below; never cached
 )
+
+
+def _run_merge(cfg: Config):
+    from cleancensus.z22 import run_merge_z22
+    run_merge_z22(cfg)
+
+
+def _merge_complete(cfg: Config) -> bool:
+    from cleancensus.z22 import merge_complete
+    return merge_complete(cfg)
 
 
 def _run_topics8(cfg: Config):
@@ -155,6 +166,7 @@ def _run_sanity(cfg: Config) -> int:
 
 # wire the implemented run callables (kept out of the literal to avoid import cost on import)
 _RUN = {
+    "merge": _run_merge,
     "topics8": _run_topics8,
     "aggs": _run_aggs,
     "regiostar": _run_regiostar,
@@ -163,6 +175,7 @@ _RUN = {
     "sanity": _run_sanity,
 }
 _IS_COMPLETE = {
+    "merge": _merge_complete,
     "topics8": _topics8_complete,
     "aggs": _aggs_complete,
     "regiostar": _regiostar_complete,
