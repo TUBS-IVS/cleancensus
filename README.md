@@ -186,31 +186,46 @@ Use them as a sanity check when reproducing the results.
 
 ## Data
 
-### Raw source
+### Raw source — the original Zensus 2022 grid
 
-The ultimate source is the **Zensus 2022 grid data** published by the Statistische Ämter des
-Bundes und der Länder under the **dl-de/by-2-0** licence.
-Download the "Ergebnisse auf Gitterzellenebene" CSVs from
-[www.zensus2022.de](https://www.zensus2022.de).
-Attribution required: *Datenquelle: Statistische Ämter des Bundes und der Länder, Zensus 2022*.
+The pipeline starts from the **publicly available original Zensus 2022 grid data**
+("Gitterdaten") and progressively smooths it into consistency — it adds no proprietary data.
 
-### Pipeline inputs (derived intermediates)
+The 2022 German census publishes results on the Europe-wide **INSPIRE grid**
+(ETRS89-LAEA, EPSG:3035) at three nested resolutions — **100 m**, **1 km** and **10 km**
+square cells, each with a stable id (e.g. `CRS3035RES100mN2691900E4341100`). Per cell it
+reports population, household, building and dwelling attributes. Small counts are perturbed
+and suppressed for privacy, which is precisely why category counts don't sum to the totals
+and the levels disagree — the problem this pipeline fixes.
 
-The three files consumed by cleancensus are **NOT** the raw Zensus CSVs — they are derived
-artifacts produced by running the archived notebooks on those raw CSVs, in this order:
+- **Download:** Zensus 2022 → *Gitterdaten zum Download für GIS* via
+  [www.zensus2022.de](https://www.zensus2022.de) (*Ergebnisse → Gitterzellenbasierte
+  Ergebnisse*; currently hosted on
+  [Destatis](https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Bevoelkerung/Zensus2022/Publikationen/))
+  — ZIP archives of CSV tables for the 100 m / 1 km / 10 km grids.
+- **Licence:** dl-de/by-2-0. **Attribution:** census content — *© Statistische Ämter des
+  Bundes und der Länder, Zensus 2022*; grid geometry — *© GeoBasis-DE / BKG 2023*.
 
-1. `notebooks_archive/data_prep.ipynb` — merges raw topic tables, builds 10 km pickle
-2. `notebooks_archive/ages.ipynb` — adds single-year age columns
-3. `notebooks_archive/gender.ipynb` — adds gender split columns at 100 m
-4. `notebooks_archive/other_binned_data.ipynb` — adds remaining binned topic columns
+See [docs/DATA.md](docs/DATA.md) for the full grid explanation and column dictionary.
 
-These multi-hour notebook runs are the only way to reproduce the inputs from scratch.
-**The derived input files are not publicly hosted yet.**
-To reproduce from scratch, run the archived notebooks on the raw grid CSVs.
-To obtain the prepared files directly, contact the authors (see `CITATION.cff`).
-*(Archival on Zenodo is planned as future work.)*
+### Pipeline inputs (derived from the raw grid, step by step)
 
-Place the three derived files in `data/inputs/` before running the pipeline.
+The three files cleancensus consumes are **intermediates** produced by processing the raw
+grid CSVs above with the archived notebooks, in order — fully reproducible from the public
+data:
+
+1. `notebooks_archive/data_prep.ipynb` — merges the raw grid CSVs per level, reconciles
+   population totals across 10 km / 1 km / 100 m (IPF)
+2. `notebooks_archive/ages.ipynb` — single-year age columns
+3. `notebooks_archive/gender.ipynb` — male/female age split at 100 m (+ backfill)
+4. `notebooks_archive/other_binned_data.ipynb` — first 8 harmonized topics + orphan pass
+
+**To reproduce from scratch:** download the raw grid CSVs and run the four notebooks in
+order — the result is exactly these three files (multi-hour runs). To obtain the prepared
+files directly, contact the authors (see [`CITATION.cff`](CITATION.cff)); publication on a
+data archive (e.g. Zenodo) is planned.
+
+Place the three files in `data/inputs/` before running the pipeline.
 
 | File | Shape | Content |
 |---|---|---|
