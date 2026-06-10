@@ -1,0 +1,22 @@
+# cleancensus pipeline configuration (TOML).
+# Run with:  uv run cleancensus --config config.toml
+
+[data]
+inputs_dir  = "data/inputs"    # must contain the three canonical input files (see docs/DATA.md)
+outputs_dir = "data/outputs"   # versioned outputs + run manifest land here
+version_tag = "v2"             # suffix for output files, e.g. ..._v2.parquet
+
+[harmonize]
+# Choose ONE of the following selectors (or omit both for the MiD-controllable default):
+# topics = "all"                                  # everything in the catalog
+# tiers  = [1, 2]                                 # catalog tiers
+topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"] # explicit topic names
+derived_tenure = true          # owner/renter households derived from Eigentuemerquote
+
+[scope]
+mode = "national"              # "national" or "subset"
+# ars_prefixes = ["03101", "03102", "03151", "03153", "03154", "03157", "03158", "03103"]  # ZGB example (subset only)
+
+[run]
+sanity = "fail"                # "fail" = abort on invariant violation | "warn" | "skip"
+write_manifest = true          # write run_manifest_<version_tag>.json next to the outputs
