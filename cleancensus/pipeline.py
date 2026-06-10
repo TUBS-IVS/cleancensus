@@ -12,6 +12,13 @@ notebooks is not finished yet are marked ``implemented=False`` and raise a clear
 only if a config actually enables them — so the framework is complete and honest while
 the heavy raw->prepared stages are still being ported.
 
+Implemented raw->prepared stages (R6):
+  - topics8   : port of notebooks_archive/other_binned_data.ipynb
+  - aggs      : decade-binned gendered age aggregates + totals (reconstructed, R6)
+  - regiostar : BBSR RegioStaR 2022 municipality classification join (reconstructed, R6)
+
+Not yet implemented: merge, totals, ages, gemeinde, gender (R3-R5).
+
 tenure and sanity are not "producer" stages: tenure is gated by
 ``[harmonize].derived_tenure`` and sanity by ``[run].sanity`` (skip = off).
 """
@@ -87,9 +94,9 @@ REGISTRY: tuple[Stage, ...] = (
     Stage("topics8", "harmonize the 8 original categorical topics + orphan pass",
           _producer_enabled("topics8"), None),  # run set below
     Stage("aggs", "M_AGE/F_AGE binned aggregate columns",
-          _producer_enabled("aggs"), _not_implemented("aggs", "R6"), implemented=False),
+          _producer_enabled("aggs"), None),  # run set below
     Stage("regiostar", "join RegioStaR 2022 classification",
-          _producer_enabled("regiostar"), _not_implemented("regiostar", "R6"), implemented=False),
+          _producer_enabled("regiostar"), None),  # run set below
     Stage("extend", "harmonize the additional topics (stage_a 10km->1km, stage_b 1km->100m)",
           _producer_enabled("extend"), None, _extend_complete),  # run set below
     Stage("tenure", "derive owner/renter households from Eigentuemerquote",
@@ -108,6 +115,26 @@ def _run_topics8(cfg: Config):
 def _topics8_complete(cfg: Config) -> bool:
     out_100 = cfg.work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
     return out_100.exists()
+
+
+def _run_aggs(cfg: Config):
+    from cleancensus.enrich import run_aggs
+    run_aggs(cfg)
+
+
+def _run_regiostar(cfg: Config):
+    from cleancensus.enrich import run_regiostar
+    run_regiostar(cfg)
+
+
+def _aggs_complete(cfg: Config) -> bool:
+    from cleancensus.enrich import aggs_complete
+    return aggs_complete(cfg)
+
+
+def _regiostar_complete(cfg: Config) -> bool:
+    from cleancensus.enrich import regiostar_complete
+    return regiostar_complete(cfg)
 
 
 def _run_extend(cfg: Config):
@@ -129,12 +156,16 @@ def _run_sanity(cfg: Config) -> int:
 # wire the implemented run callables (kept out of the literal to avoid import cost on import)
 _RUN = {
     "topics8": _run_topics8,
+    "aggs": _run_aggs,
+    "regiostar": _run_regiostar,
     "extend": _run_extend,
     "tenure": _run_tenure,
     "sanity": _run_sanity,
 }
 _IS_COMPLETE = {
     "topics8": _topics8_complete,
+    "aggs": _aggs_complete,
+    "regiostar": _regiostar_complete,
 }
 REGISTRY = tuple(
     Stage(s.name, s.desc, s.enabled, _RUN.get(s.name, s.run),
