@@ -18,7 +18,6 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from cleancensus.harmonization import (
     build_topic_specs_for_level,
@@ -27,6 +26,7 @@ from cleancensus.harmonization import (
     downscale_topic,
     impute_orphan_rows_100m,
 )
+from cleancensus.progress import progress_iter
 from cleancensus.stages import DOWNSCALE_KW
 
 
@@ -84,7 +84,7 @@ def run_topics8_1km(df10_path: str | Path, df1_path: str | Path, out_1_path: str
         verbose=True,
     )
 
-    for spec in tqdm(specs, desc="Topics 1km"):
+    for spec in progress_iter(specs, "topics8/1km", total=len(specs)):
         res = downscale_topic(
             parent_df=df10,
             child_df=df1,
@@ -190,7 +190,7 @@ def run_topics8_100m(
             df100_min.loc[df100_ok.index, col] = df100_ok[col].astype(np.float32).values
 
     # Downscale each topic
-    for spec in tqdm(topics_100m, desc="Topics 100m"):
+    for spec in progress_iter(topics_100m, "topics8/100m", total=len(topics_100m)):
         res = downscale_topic(
             parent_df=df1_ok,
             child_df=df100_ok,

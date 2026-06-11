@@ -31,6 +31,8 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from cleancensus.progress import progress_iter
+
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -509,13 +511,8 @@ def downscale_single_years(
 
     Returns DataFrame aligned to child_df.index with AGE_0..AGE_{top_age}.
     """
-    try:
-        from tqdm import tqdm as _tqdm
-        def _wrap(it, **kw):
-            return _tqdm(it, **kw)
-    except ImportError:
-        def _wrap(it, **kw):
-            return it
+    def _wrap(it, desc="downscale", total=None, **kw):
+        return progress_iter(it, desc, total=total)
 
     top_age = cfg.top_age
     Acols = parent_age_cols or age_cols(top_age)
@@ -544,7 +541,7 @@ def downscale_single_years(
     for pid, psub in parent_df[[parent_id_col] + Acols].groupby(parent_id_col):
         parent_age_map[pid] = psub[Acols].astype(float).to_numpy().sum(axis=0)
 
-    for pid, child_idx in _wrap(groups.groups.items(), desc=f"downscale {child_level_for_bins}"):
+    for pid, child_idx in _wrap(groups.groups.items(), desc=f"ages/downscale-{child_level_for_bins}", total=len(groups)):
         p = parent_age_map.get(pid)
         if p is None:
             out.loc[child_idx, :] = 0.0

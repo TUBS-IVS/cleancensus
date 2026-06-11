@@ -359,11 +359,13 @@ def download_z22(
     list of Path
         Paths of all downloaded (or already-cached) parquet files.
     """
+    from cleancensus.progress import progress_iter
+
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     paths = []
-    for feat, cat in features:
+    for feat, cat in progress_iter(features, f"z22/download-{level}", total=len(features)):
         fname = f"{feat}_{cat}.parquet"
         dest_path = dest_dir / fname
         if dest_path.exists() and not force:
@@ -416,6 +418,8 @@ def build_merged_table(level: str, src_dir: str | Path) -> "pd.DataFrame":
     import pandas as pd
     import pyarrow.parquet as pq
 
+    from cleancensus.progress import progress_iter
+
     src_dir = Path(src_dir)
     suffix  = f"_{level}-Gitter"
     gid_col = f"GITTER_ID_{level}"
@@ -427,7 +431,9 @@ def build_merged_table(level: str, src_dir: str | Path) -> "pd.DataFrame":
     all_coords: dict[str, tuple[int, int]] = {}
     feature_cols: list[tuple[str, "pd.Series"]] = []
 
-    for (feat, cat), base_name in FEATURE_MAP.items():
+    for (feat, cat), base_name in progress_iter(
+        FEATURE_MAP.items(), f"z22/build-{level}", total=len(FEATURE_MAP)
+    ):
         parquet_path = src_dir / f"{feat}_{cat}.parquet"
         if not parquet_path.exists():
             # Feature not downloaded – will appear as NaN in output (silently)

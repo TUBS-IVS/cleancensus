@@ -9,7 +9,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from cleancensus.harmonization import (
     normalize_parent_categories_for_specs,
@@ -17,6 +16,7 @@ from cleancensus.harmonization import (
     downscale_topic,
     impute_orphan_rows_100m,
 )
+from cleancensus.progress import progress_iter
 from cleancensus.topics import build_new_topic_specs
 
 DOWNSCALE_KW = dict(
@@ -98,7 +98,7 @@ def run_stage_a(cfg) -> None:
         verbose=True,
     )
 
-    for spec in tqdm(specs, desc="Topics 1km"):
+    for spec in progress_iter(specs, "stage_a/topics-1km", total=len(specs)):
         res = downscale_topic(
             parent_df=df10,
             child_df=df1,
@@ -178,7 +178,7 @@ def run_stage_b(cfg) -> None:
     for col in adj_total_cols:
         df100_min.loc[df100_ok.index, col] = df100_ok[col].astype(np.float32).values
 
-    for spec in tqdm(specs, desc="Topics 100m"):
+    for spec in progress_iter(specs, "stage_b/topics-100m", total=len(specs)):
         res = downscale_topic(
             parent_df=df1_ok,
             child_df=df100_ok,
@@ -229,7 +229,15 @@ def run_stage_b(cfg) -> None:
 
     writer, pos, batch_size = None, 0, 1_000_000
     scanner = dataset.scanner(columns=keep_cols, batch_size=batch_size)
-    for rb in scanner.to_reader():
+    # Approximate total batches from row-group metadata (best-effort)
+    try:
+        _n_rg = sum(
+            pq.ParquetFile(f).metadata.num_row_groups
+            for f in dataset.files
+        )
+    except Exception:
+        _n_rg = None
+    for rb in progress_iter(scanner.to_reader(), "stage_b/stream-write", total=_n_rg):
         tbl = pa.Table.from_batches([rb])
         n = tbl.num_rows
         combined = tbl

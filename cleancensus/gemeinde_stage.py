@@ -45,7 +45,8 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from tqdm import tqdm
+
+from cleancensus.progress import progress_iter
 
 log = logging.getLogger(__name__)
 
@@ -244,7 +245,8 @@ def join_gemeinde_streaming(
     n_rows = len(cells_all)
     log.info("[gemeinde] streaming %d rows in chunks of %d", n_rows, chunk_size)
 
-    for start in tqdm(range(0, n_rows, chunk_size), desc="gemeinde join"):
+    n_chunks = (n_rows + chunk_size - 1) // chunk_size
+    for start in progress_iter(range(0, n_rows, chunk_size), "gemeinde/sjoin", total=n_chunks):
         chunk_full = cells_all.iloc[start : start + chunk_size, :].copy()
 
         pts = _parse_centroids_3035(chunk_full, CELLS_ID_COL)

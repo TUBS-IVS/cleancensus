@@ -293,10 +293,27 @@ def run_pipeline(cfg: Config, force: bool = False, from_stage: str | None = None
     """
     import time
 
+    from cleancensus.progress import format_duration, load_stage_timings, save_stage_timings
+
     steps = plan(cfg, force=force, from_stage=from_stage)
     by_name = {s.name: s for s in REGISTRY}
     timings: dict[str, float] = {}
     sanity_failures = 0
+
+    # Load previous per-stage timings for ETA estimation
+    timings_path = cfg.outputs_dir / ".stage_timings.json"
+    try:
+        cfg.outputs_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    prev_timings = load_stage_timings(timings_path)
+
+    # Determine which stages will actually run (for k-of-N banner)
+    running_stages = [s["name"] for s in steps if s["action"] == "run"]
+    N = len(running_stages)
+    k = 0  # 1-based counter, incremented before each run
+
+    pipeline_t0 = time.perf_counter()
 
     for step in steps:
         name, action = step["name"], step["action"]
@@ -306,10 +323,40 @@ def run_pipeline(cfg: Config, force: bool = False, from_stage: str | None = None
         if action != "run":
             print(f"[pipeline] {name}: {action}")
             continue
-        print(f"[pipeline] {name}: run")
+
+        k += 1
+        # --- pre-stage banner -----------------------------------------------
+        prev_dur = prev_timings.get(name)
+        prev_str = f"~{format_duration(prev_dur)}" if prev_dur is not None else "n/a"
+        print(f"[pipeline] ===== stage {k}/{N}: {name} ===== (last run: {prev_str})")
+
         t0 = time.perf_counter()
         result = by_name[name].run(cfg)
-        timings[name] = round(time.perf_counter() - t0, 1)
+        stage_dur = round(time.perf_counter() - t0, 1)
+        timings[name] = stage_dur
+
+        # --- post-stage summary ---------------------------------------------
+        pipeline_elapsed = time.perf_counter() - pipeline_t0
+        # ETA: sum of previous-run durations for stages not yet run
+        not_yet_run = running_stages[k:]  # stages after the current one (k is 1-based, list is 0-based)
+        remaining_known = [prev_timings.get(s) for s in not_yet_run]
+        if all(v is not None for v in remaining_known) and remaining_known:
+            eta_str = f"~{format_duration(sum(remaining_known))}"  # type: ignore[arg-type]
+        elif remaining_known:
+            eta_str = "n/a (some stages have no prior timing)"
+        else:
+            eta_str = "n/a"
+
+        print(
+            f"[pipeline] {name} done in {format_duration(stage_dur)} "
+            f"| pipeline elapsed {format_duration(pipeline_elapsed)} "
+            f"| remaining ETA {eta_str}"
+        )
+
         if name == "sanity" and isinstance(result, int):
             sanity_failures = result
+
+    # Persist updated timings (merge: only overwrite stages that ran)
+    save_stage_timings(timings_path, timings)
+
     return timings, sanity_failures

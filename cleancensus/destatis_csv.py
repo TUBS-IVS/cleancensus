@@ -300,13 +300,15 @@ def merge_destatis_tables(level: str, raw_dir: str | Path) -> "pd.DataFrame | No
     """
     import pandas as pd
 
+    from cleancensus.progress import progress_iter
+
     raw_dir = Path(raw_dir)
     gid_col = f"GITTER_ID_{level}"
 
     merged: pd.DataFrame | None = None
     found = 0
 
-    for zip_name in DESTATIS_TABLES:
+    for zip_name in progress_iter(list(DESTATIS_TABLES), "destatis/tables", total=len(DESTATIS_TABLES)):
         zip_path = raw_dir / zip_name
         if not zip_path.exists():
             warnings.warn(

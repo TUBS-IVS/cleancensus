@@ -44,7 +44,8 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+
+from cleancensus.progress import progress_iter
 
 log = logging.getLogger(__name__)
 
@@ -361,7 +362,7 @@ def add_gender_split(
 
     cells[ARS_COL] = cells[ARS_COL].astype("category")
 
-    for a in tqdm(range(AGE_TOP + 1), desc="Gender split per age"):
+    for a in progress_iter(range(AGE_TOP + 1), "gender/age-split", total=AGE_TOP + 1):
         age_col = f"AGE_{a}"
         m_col   = f"M_AGE_{a}"
         f_col   = f"F_AGE_{a}"
