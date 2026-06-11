@@ -40,33 +40,61 @@ The following toy example illustrates the problem for a single cell:
 
 ## What the pipeline does
 
-The pipeline resolves the cross-level inconsistencies and category-total mismatch for every
-cell in Germany in five sequential stages:
+The pipeline has **eleven stages** spanning the full path from the raw Zensus 2022 grid data
+to final analysis-ready cell tables.  Stages 1–8 ("raw→prepared") were ported from the
+archived notebooks and are equivalence-gated against the notebook-era outputs.  Stages
+9–11 are the harmonization and validation stages.
 
-1. **stage_a** — Downscale 10 km category vectors to 1 km, using trust-blended IPF anchored to
-   the 10 km parent totals; produces adjusted totals (`*_adj`) and harmonized category columns.
-2. **stage_b** — Downscale 1 km category vectors to 100 m over the full 3.1 M-cell national
-   grid, streamed in batches to avoid memory exhaustion; orphan 100 m cells (no 1 km parent)
-   receive prior-based imputation.
-3. **tenure** *(optional)* — Derive owner/renter household counts from the published
-   `Eigentuemerquote` ratio, anchored to the harmonized household total chain.
-4. **sanity** — Run invariant checks: `sum(categories) == *_adj` per cell, universe equality
-   across co-anchored topics, national mass within 2 % of the 10 km raw total, no NaN/negatives.
-5. **manifest** — Write a JSON run manifest with timings, git SHA, config snapshot, and output
-   file sizes.
+**Raw→prepared stages (ported from archived notebooks, equivalence-gated):**
+
+1. **merge** — Download z22data Parquet files (Jonas Lieth's GitHub mirror) and assemble
+   wide per-level tables at 10 km, 1 km, and 100 m; all 36 feature families fully mapped.
+2. **totals** — Consensus-collapse the population total columns and proportionally adjust
+   child sums to match parent totals across 10 km → 1 km → 100 m.
+3. **ages** — Fit single-year age columns `AGE_0..AGE_100` via trust-mixed multiplicative
+   IPF on the 10 km grid, then hierarchically downscale to 1 km and 100 m.
+4. **gemeinde** — Spatial join of BKG VG250 Gemeinde polygons (EPSG:25832 → 3035) onto
+   100 m cell centroids; attaches ARS-derived sub-fields (Land, Kreis, Gemeinde, …).
+5. **gender** — Male/female age split at 100 m using GENESIS 1000A-2027 per-Gemeinde
+   shares; orphan-cell backfill for 36 cells with population but no age breakdown.
+6. **topics8** — Trust-blended IPF downscaling of the 8 original categorical topics
+   (Familienstand, Energieträger, Heizungsart, HH-Größe, Lebensform, Räume, Wohnfläche,
+   Geburtsland) from 10 km → 1 km → 100 m; orphan pass inline.
+7. **aggs** — Decade-binned gendered age aggregates (`M_AGE_0_9_agg` … `F_AGE_80_plus_agg`)
+   and undifferentiated `AGE_*_agg` columns; reconstructed from the canonical input file.
+8. **regiostar** — Join 7 BBSR RegioStaR 2022 classification columns onto 100 m cells via
+   8-digit AGS derived from the ARS key.
+
+**Harmonization and validation stages:**
+
+9. **extend** — Harmonize additional topics from the catalog at 10 km → 1 km → 100 m
+   (trust-blended IPF, same machinery as topics8; controlled by `[harmonize].topics`).
+10. **tenure** *(optional)* — Derive owner/renter household counts from `Eigentuemerquote`,
+    anchored to the harmonized household total chain.
+11. **sanity** — Invariant checks: `sum(categories) == *_adj` per cell, universe equality,
+    national mass within 2 % of 10 km raw total, no NaN/negatives.
 
 ```mermaid
 flowchart LR
-    A["df10_with_single_years.pickle\n(3 824 x 346)"]
-    B["cells_1km_with_binneds.parquet\n(212 758 x 256)"]
-    C["cells_100m_..._regiostar.parquet\n(3 148 482 x 570)"]
-
-    A --> SA["stage_a\n10km -> 1km"]
-    B --> SA
-    SA --> O1["cells_1km_..._v2.parquet"]
-    O1 --> SB["stage_b\n1km -> 100m (streamed)"]
-    C --> SB
-    SB --> O100["cells_100m_..._v2.parquet"]
+    subgraph "raw->prepared (ported from archived notebooks, equivalence-gated)"
+        M["merge\nz22data -> wide tables\n10km/1km/100m"]
+        T["totals\ncollapse POP_TOTAL\ncross-level adjust"]
+        A["ages\nAGE_0..100\ntrust-mixed IPF"]
+        G4["gemeinde\nVG250 spatial join\nARS/Land/Kreis"]
+        G5["gender\nM-F split\norphan backfill"]
+        T8["topics8\n8 original topics\n10km->1km->100m"]
+        AG["aggs\ndecade-binned\ngendered ages"]
+        RS["regiostar\nBBSR RegioStaR\n2022 join"]
+        M --> T --> A --> G4 --> G5 --> T8 --> AG --> RS
+    end
+    RS --> WD["work_dir/\ncells_100m_..._regiostar.parquet"]
+    I1["data/inputs/\ndf10_with_single_years.pickle"] -. "prepared mode" .-> EX
+    I2["data/inputs/\ncells_1km_with_binneds.parquet"] -. "prepared mode" .-> EX
+    I3["data/inputs/\ncells_100m_..._regiostar.parquet"] -. "prepared mode" .-> EX
+    WD -. "full mode" .-> EX
+    EX["extend\nadditional topics\nstage_a + stage_b"]
+    EX --> O1["cells_1km_..._v2.parquet"]
+    EX --> O100["cells_100m_..._v2.parquet"]
     O100 --> TEN["tenure\nowner/renter"]
     TEN --> O100
     O100 --> SAN["sanity checks"]
@@ -84,26 +112,82 @@ flowchart LR
 # 1. Install dependencies (Python >= 3.13 required)
 uv sync
 
-# 2. Place the three input files in data/inputs/
-#    (see the Data section below for file names and how to obtain them)
-
-# 3. Copy and edit the config
+# 2. Copy and edit the example config
 cp config.example.toml config.toml
-#    Edit: inputs_dir, outputs_dir, version_tag, topics, derived_tenure, mode
 
-# 4. Preview the resolved plan without running anything
+# 3. Preview the resolved plan without running anything
 uv run cleancensus --config config.toml --dry-run
 
-# 5. Run the full pipeline
+# 4. Run
 uv run cleancensus --config config.toml
 
 # Use --help to see all options
 uv run cleancensus --help
 ```
 
+There are two entry modes, depending on what data you have available:
+
+### (a) Prepared mode (default — fastest)
+
+Place the three pre-processed input files in `data/inputs/` (see the **Data** section below
+for file names and how to obtain them).  Only stages **extend**, **tenure**, and **sanity**
+run — the raw→prepared chain is skipped.  This is the default behaviour and is exactly what
+the config.example.toml enables.
+
 **Hardware note:** the 100 m stage streams the 7.7 GB input in 1 M-row batches; peak RAM
 ~4–6 GB; a full national run with the default 2 topics + tenure takes approximately 2–4 h
 on a desktop CPU.
+
+### (b) Full mode (raw→final, stages 1–11)
+
+Enable all stages in your config to run the complete pipeline starting from the raw
+z22data Parquet files (downloaded automatically by the merge stage):
+
+```toml
+# config_full.toml — full raw->final pipeline
+[data]
+inputs_dir  = "data/inputs"
+outputs_dir = "data/outputs"
+version_tag = "v2"
+
+[harmonize]
+topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"]
+derived_tenure = true
+
+[scope]
+mode = "national"
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true   # download z22data Parquet files + build wide tables
+totals    = true   # collapse POP_TOTAL columns + cross-level adjustment
+ages      = true   # AGE_0..100 via trust-mixed IPF
+gemeinde  = true   # VG250 spatial join (needs BKG GeoPackage — see below)
+gender    = true   # M/F split (needs GENESIS 1000A-2027 CSV — see below)
+topics8   = true   # 8 original categorical topics 10km->1km->100m
+aggs      = true   # decade-binned gendered age aggregates
+regiostar = true   # BBSR RegioStaR 2022 join (needs regiostar_referenzdatei.xlsx)
+extend    = true   # additional harmonized topics (catalog-driven)
+```
+
+**Two external files are required for the gemeinde and gender stages (not in z22data):**
+
+| File | Where to get it | Config key |
+|---|---|---|
+| GENESIS table `1000A-2027_de.csv` (population by age and sex at Gemeinde level) | [ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027](https://ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027) → "Anpassen" → Gemeinden → download CSV | `gemeinde_age_csv_path` in `[stages]` TOML section |
+| BKG VG250 GeoPackage (`DE_VG250.gpkg`, reference date 2022-01-01, EPSG:25832) | [gdz.bkg.bund.de](https://gdz.bkg.bund.de/index.php/default/open-data/verwaltungsgebiete-1-250-000-mit-einwohnerzahlen-stand-31-12-vg250-ew-31-12.html) | `vg250_gpkg_path` in `[stages]` TOML section |
+
+**Note on 6 tables not in z22data:** age_avg, household_size_avg, rent_avg, owner_occupier,
+dwelling_space, inhabitant_space are ratio/average columns available in z22data (ratio
+features with cat=0 → direct download). Six topics present in the T: notebook-era merged
+CSVs but **not** in z22data are: Seniorenstatus, Lebensform, Typ_HH_Familie, Religion,
+Zahl_der_Staatsang., Grosse_Kernfamilie. These were z11-only and are documented in
+`docs/Z22_GATE_REPORT.md`.
+
+See [`docs/CONFIG.md`](docs/CONFIG.md) for the full `[stages]` reference.
 
 Outputs land in `data/outputs/` (or wherever `outputs_dir` points):
 - `cells_1km_with_binneds_<version_tag>.parquet`
@@ -140,11 +224,31 @@ as PopulationSim controls for: building type via the geocoded `haustyp` variable
 
 ## Validated reference results
 
+### Stage gate summary
+
+Each raw→prepared stage was validated against the notebook-era T: drive artifacts.
+Cross-reference the gate reports in [`docs/`](docs/) for full details.
+
+| Stage | Gate metric | Result | Report |
+|---|---|---|---|
+| **merge (z22)** | Shared columns: 157/158 exact at 10 km; 158/159 exact at 1 km | PASS | [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) |
+| **merge (z22) — 1 orphan** | `households_0` at 10 km: −0.018 % (disclosure suppression); at 1 km: −13 % (cell-level suppression expected) | NEAR-EXACT / SYSTEMATIC (not a port bug) | same |
+| **totals** | 10 km exact; 1 km max\|d\| = 3.6e-12 | PASS | [`docs/AGES_GATE_REPORT.md`](docs/AGES_GATE_REPORT.md) |
+| **ages** | 10 km exact; 1 km exact (212 k cells); 100 m exact (subset, 54 cells) | PASS | same |
+| **gemeinde** | ARS sub-field transform verified on 100 unique ARS; T: artifact internal consistency confirmed (3,148,224 rows) | PASS | [`docs/GENDER_GATE_REPORT.md`](docs/GENDER_GATE_REPORT.md) |
+| **gender** | Bavaria subset (575,875 rows): column sums relative diff < 2.4e-6 (float32 noise); backfill 36/36 rows exact | PASS | same |
+| **topics8** | 1 km max\|d\| = 0; ZGB 78/82 exact + 1 benign orphan cell | PASS | (inline) |
+| **aggs** | Gendered bins: exact zero diff; AGE_\* float noise ~1e-7 (M+F sum) | PASS | (inline) |
+| **regiostar** | 100 % match rate against ReferenzGebietsstand2020; ~5,188 NaN rows (no-municipality cells) | PASS | (inline) |
+| **extend** | ZGB equivalence gate max\|d\| = 3.05e-05 (float32 noise); raw totals bit-exact | PASS | (inline) |
+| **tenure** | National owner share 0.4419 (Zensus 2022 benchmark ≈ 0.436); 4 orphan cells deviate ≤ 3 HH (benign) | PASS | see below |
+
+### End-to-end output (extend + tenure + sanity)
+
 The following numbers were produced by the validated national run
-(legacy v2+v3 artifacts: v2 = topic harmonization, v3 = v2 + tenure;
-in the new pipeline a single run with `derived_tenure = true` produces both in one `version_tag`)
-with `topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"]` and `derived_tenure = true`.
-Use them as a sanity check when reproducing the results.
+(topics = `["Whg_Gebaeudetyp", "HH_Seniorenstatus"]`, `derived_tenure = true`).
+In the new pipeline a single run with `derived_tenure = true` produces what previously
+required two runs (legacy v2 + v3).
 
 | Metric | Value |
 |---|---|
@@ -168,18 +272,32 @@ Use them as a sanity check when reproducing the results.
 
 | Path | Description |
 |---|---|
-| `cleancensus/config.py` | `Config` dataclass and `load_config()` — single contract for all pipeline parameters |
+| `cleancensus/config.py` | `Config` dataclass and `load_config()` — single contract for all pipeline parameters; `PRODUCER_STAGES` tuple |
+| `cleancensus/pipeline.py` | Stage registry (`REGISTRY`), `plan()`, `run_pipeline()` — orchestrates all 11 stages |
+| `cleancensus/z22.py` | `FEATURE_MAP` (160 entries, all 36 z22data features), `download_z22()`, `build_merged_table()`, `run_merge_z22()` |
+| `cleancensus/ingest_totals.py` | Totals stage: `run_totals()` — consensus collapse of POP_TOTAL columns + proportional cross-level adjustment |
+| `cleancensus/ages_stage.py` | Ages stage: `fit_single_years_10km()`, `downscale_single_years()`, `run_ages()` |
+| `cleancensus/gemeinde_stage.py` | Gemeinde stage: spatial join of BKG VG250 polygons → ARS/Land/Kreis/… on 100 m cells |
+| `cleancensus/gender_stage.py` | Gender stage: M/F split from GENESIS 1000A-2027 per-Gemeinde shares + orphan backfill |
+| `cleancensus/topics8.py` | Topics8 stage: trust-blended IPF downscaling of 8 original categorical topics 10 km → 1 km → 100 m |
+| `cleancensus/enrich.py` | Aggs stage (`run_aggs`) and RegioStaR stage (`run_regiostar`) |
 | `cleancensus/harmonization.py` | Core machinery: `TrustBlend`, `rake_to_margins`, `make_child_totals_adj`, `TopicSpec`, `downscale_topic`, `normalize_parent_categories_for_specs`, `apply_adj_for_all_topics`, `impute_orphan_rows_100m` |
 | `cleancensus/topics.py` | Topic catalog: `RAW_TOPICS` (14 topics in 3 tiers) and `MID_CONTROLLABLE_DEFAULT` |
-| `cleancensus/stages.py` | `run_stage_a` (10 km → 1 km) and `run_stage_b` (1 km → 100 m, streamed) |
+| `cleancensus/stages.py` | `run_stage_a` (10 km → 1 km) and `run_stage_b` (1 km → 100 m, streamed) for the extend stage |
 | `cleancensus/tenure.py` | `run_tenure` and `check_tenure` — owner/renter derivation |
 | `cleancensus/sanity.py` | `run_sanity` — post-run invariant checks |
-| `cleancensus/cli.py` | `main()` — CLI entry point (`uv run cleancensus`) |
+| `cleancensus/cli.py` | `main()` — CLI entry point (`uv run cleancensus`) with `--dry-run`, `--force`, `--from` flags |
 | `tools/equivalence_zgb.py` | Cell-exact equivalence gate comparing two output parquet files |
-| `notebooks_archive/` | Original notebook pipeline (preserved for provenance; see `notebooks_archive/ARCHIVE_README.md`) |
-| `docs/` | `METHOD.md`, `DATA.md`, `CONFIG.md` |
-| `tests/` | pytest suite (23 tests, synthetic fixtures) |
-| `data/` | Gitignored; contains `inputs/` and `outputs/` locally |
+| `notebooks_archive/` | Original notebook pipeline (preserved for provenance; see `notebooks_archive/ARCHIVE_README.md`) — fully superseded by pipeline stages |
+| `docs/METHOD.md` | Mathematical method description |
+| `docs/DATA.md` | Data dictionary, input files, work_dir intermediates, output naming |
+| `docs/CONFIG.md` | Full configuration reference including `[stages]` block |
+| `docs/Z22_GATE_REPORT.md` | z22data ingest validation: GITTER_ID formula, 10 km / 1 km gates, coverage completion |
+| `docs/AGES_GATE_REPORT.md` | Totals and ages stage gate report |
+| `docs/GENDER_GATE_REPORT.md` | Gemeinde and gender stage gate report |
+| `docs/RAW_DOWNLOAD.md` | How to download raw Zensus 2022 CSVs (z22data mirror + Destatis portal) |
+| `tests/` | pytest suite (125+ tests, synthetic fixtures) |
+| `data/` | Gitignored; `inputs/` (prepared files or outputs of stages 1–8), `outputs/` (final versioned files), `work/` (stage intermediates) |
 | `config.example.toml` | Annotated example configuration |
 
 ---
@@ -213,24 +331,22 @@ and the levels disagree — the problem this pipeline fixes.
 
 See [docs/DATA.md](docs/DATA.md) for the full grid explanation and column dictionary.
 
-### Pipeline inputs (derived from the raw grid, step by step)
+### Pipeline inputs (prepared mode)
 
-The three files cleancensus consumes are **intermediates** produced by processing the raw
-grid CSVs above with the archived notebooks, in order — fully reproducible from the public
-data:
+In prepared mode the three files below go into `data/inputs/`.  They are **intermediates**
+produced by the raw→prepared pipeline (stages 1–8 above), which is now fully implemented
+and reproducible — the archived notebooks that originally produced them are superseded.
 
-1. `notebooks_archive/data_prep.ipynb` — merges the raw grid CSVs per level, reconciles
-   population totals across 10 km / 1 km / 100 m (IPF)
-2. `notebooks_archive/ages.ipynb` — single-year age columns
-3. `notebooks_archive/gender.ipynb` — male/female age split at 100 m (+ backfill)
-4. `notebooks_archive/other_binned_data.ipynb` — first 8 harmonized topics + orphan pass
+**To reproduce from scratch (full mode):** enable all stages in the config (see Quickstart
+section (b) above); the pipeline downloads z22data automatically and runs the complete chain.
+To obtain the prepared files directly, contact the authors (see [`CITATION.cff`](CITATION.cff));
+publication on a data archive (e.g. Zenodo) is planned.
 
-**To reproduce from scratch:** download the raw grid CSVs and run the four notebooks in
-order — the result is exactly these three files (multi-hour runs). To obtain the prepared
-files directly, contact the authors (see [`CITATION.cff`](CITATION.cff)); publication on a
-data archive (e.g. Zenodo) is planned.
-
-Place the three files in `data/inputs/` before running the pipeline.
+**Note on the z22data feature-name inversion (corrected):** z22data's `building_size` and
+`dwelling_building_size` feature names are swapped relative to their literal meaning — a
+translation mix-up in the upstream z22 project. The `FEATURE_MAP` maps them semantically
+correctly (verified by the MFH_13+ discriminator); a regression test guards this direction.
+See [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) for the full investigation.
 
 | File | Shape | Content |
 |---|---|---|

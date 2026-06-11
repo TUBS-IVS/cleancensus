@@ -45,33 +45,49 @@ up to the published totals and the three levels disagree (the problem this pipel
   downloader (`tools/download_zensus_grid.py`) that fetches and unzips the ZIPs into
   `data/raw/csv/` for consumption by the merge stage.
 
-## Pipeline input files (derived from the raw grid, step by step)
+## Pipeline input files and work_dir intermediates
 
-The three files in `data/inputs/` are **intermediate products** obtained by processing the
-raw Zensus 2022 grid CSVs above, step by step, with the archived notebooks. They are fully
-reproducible from the public data — nothing proprietary is added. Derivation order:
+The three files in `data/inputs/` are the **prepared inputs** for the extend/tenure/sanity
+stages (prepared mode). They are produced by running stages 1–8 of the full pipeline, which
+is now fully implemented in `cleancensus/`. The archived notebooks that originally produced
+them are superseded by these pipeline stages — see `notebooks_archive/ARCHIVE_README.md`.
 
-1. `notebooks_archive/data_prep.ipynb` — merges the raw grid CSVs per level and reconciles
-   population totals across the 10 km / 1 km / 100 m levels (IPF)
-2. `notebooks_archive/ages.ipynb` — derives single-year age columns from the age groups
-3. `notebooks_archive/gender.ipynb` — adds the male/female age split at 100 m (+ backfill)
-4. `notebooks_archive/other_binned_data.ipynb` — harmonizes the first 8 categorical topics
-   (trust-blended IPF) and runs the orphan pass
+**To reproduce from scratch:** enable all stages in the config and run `uv run cleancensus`;
+the pipeline downloads z22data automatically and runs the complete chain (multi-hour for the
+national dataset). To obtain the prepared files directly, contact the authors (`CITATION.cff`);
+publication on a data archive (e.g. Zenodo) is planned.
 
-Each notebook run takes multiple hours on the full national dataset.
+Place the three files in `data/inputs/` (or the directory configured as `inputs_dir`) for
+prepared-mode operation.
 
-**To reproduce from scratch:** download the raw grid CSVs (above) and run the four notebooks
-in order; the result is exactly these three files. To obtain the prepared files directly
-without re-running the notebooks, contact the authors (see `CITATION.cff`); publication on a
-data archive (e.g. Zenodo) is planned.
-
-Place the three files in `data/inputs/` (or the directory configured as `inputs_dir`).
-
-| File | Shape | Origin notebook | Content |
+| File | Shape | Produced by | Content |
 |---|---|---|---|
-| `df10_with_single_years.pickle` | 3,824 × 346 | `notebooks_archive/data_prep.ipynb` + `ages.ipynb` | 10 km grid cells; merged Zensus 2022 topic tables per cell, plus single-year age columns `AGE_0` – `AGE_100`; index is `GITTER_ID_10km` |
-| `cells_1km_with_binneds.parquet` | 212,758 × 256 | `notebooks_archive/other_binned_data.ipynb` + previous pipeline runs | 1 km cells; includes the original 8 harmonized topics (Familienstand, Energietraeger, Heizungsart, Haushaltsgroesse, Lebensform, Raeume, Wohnflaeche, Geburtsland) plus binned age/gender columns; key columns: `GITTER_ID_1km`, `GITTER_ID_10km` |
-| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` | 3,148,482 × 570 | `notebooks_archive/gender.ipynb` + `other_binned_data.ipynb` (orphan pass) | Full national 100 m cell table (~7.7 GB); includes age/gender columns, aggregated categorical topic columns for the 8 original topics, RegioStar 2022 classification, `is_orphan` flag, and `Eigentuemerquote` ratio; key columns: `GITTER_ID_100m`, `GITTER_ID_1km` |
+| `df10_with_single_years.pickle` | 3,824 × 346 | stages `merge` + `totals` + `ages` | 10 km grid cells; merged Zensus 2022 topic tables per cell, plus single-year age columns `AGE_0`–`AGE_100`; index is `GITTER_ID_10km` |
+| `cells_1km_with_binneds.parquet` | 212,758 × 256 | stages `totals` + `topics8` | 1 km cells; includes the original 8 harmonized topics (Familienstand, Energietraeger, Heizungsart, Haushaltsgroesse, Lebensform, Raeume, Wohnflaeche, Geburtsland) plus binned age/gender columns; key columns: `GITTER_ID_1km`, `GITTER_ID_10km` |
+| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` | 3,148,482 × 570 | stages `gemeinde` + `gender` + `topics8` + `aggs` + `regiostar` | Full national 100 m cell table (~7.7 GB); includes age/gender columns, aggregated categorical topic columns for the 8 original topics, RegioStaR 2022 classification, `is_orphan` flag, and `Eigentuemerquote` ratio; key columns: `GITTER_ID_100m`, `GITTER_ID_1km` |
+
+### work_dir intermediates (full mode only)
+
+When running with one or more raw→prepared stages enabled, the pipeline writes intermediate
+files to `data/work/` (the `work_dir` sibling of `inputs_dir`, gitignored).  Each stage reads
+the previous stage's file and appends its output.
+
+| work_dir file | Written by | Content |
+|---|---|---|
+| `merged_10km_gitter.parquet` | `merge` | Wide table at 10 km; one column per FEATURE_MAP entry (160 columns + 3 coordinate cols) |
+| `merged_1km_gitter.parquet` | `merge` | Same at 1 km |
+| `merged_100m_gitter.parquet` | `merge` | Same at 100 m |
+| `totals_10km.parquet` | `totals` | 10 km cells + `POP_TOTAL_10km` consensus column |
+| `totals_1km.parquet` | `totals` | 1 km cells + `POP_TOTAL_1km` + `scale` (adjustment factor) |
+| `totals_100m.parquet` | `totals` | 100 m cells + `POP_TOTAL_100m` + `scale` |
+| `df10_with_single_years.parquet` | `ages` | 10 km cells + `AGE_0`..`AGE_100` |
+| `df1_with_single_years.parquet` | `ages` | 1 km cells + `AGE_0`..`AGE_100` |
+| `df100_with_single_years.parquet` | `ages` | 100 m cells + `AGE_0`..`AGE_100` + `is_orphan` flag |
+| `cells_100m_with_gemeinde.parquet` | `gemeinde` | 100 m cells + ARS sub-fields (Land, Kreis, Gemeinde, …) |
+| `cells_100m_with_gender_backfilled.parquet` | `gender` | + `M_AGE_0`..`M_AGE_100`, `F_AGE_0`..`F_AGE_100`, `M_TOTAL`, `F_TOTAL` |
+| `cells_100m_with_gender_backf_binneds_happyorphans.parquet` | `topics8` | + 8 harmonized categorical topics (`*_adj` totals + category columns) |
+| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs.parquet` | `aggs` | + decade-binned age aggregates (`M_AGE_0_9_agg`…`F_AGE_80_plus_agg`, `AGE_*_agg`) |
+| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` | `regiostar` | + RegioStaR columns (`RegioStaR2`, `RegioStaR4`, `RegioStaR17`, `RegioStaR7`, `RegioStaR5`, `RegioStaRGem7`, `RegioStaRGem5`) — this file is the final prepared input |
 
 ### Column naming convention
 

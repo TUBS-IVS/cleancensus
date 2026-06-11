@@ -55,6 +55,43 @@ as PopulationSim controls for: building type via the geocoded `haustyp` variable
 | `sanity` | `"fail"`, `"warn"`, or `"skip"` | `"fail"` | Exactly one of the three values | `"fail"` — exit code 1 if any invariant check fails; `"warn"` — print failures but exit 0; `"skip"` — omit sanity stage entirely |
 | `write_manifest` | bool | `true` | — | When `true`, writes `run_manifest_<version_tag>.json` to `outputs_dir` on completion |
 
+### `[stages]`
+
+Controls which data-producing stages execute.  `tenure` is controlled by
+`[harmonize].derived_tenure`; `sanity` is controlled by `[run].sanity` (not listed here).
+
+By default only `extend = true`; all raw→prepared stages default to `false` (prepared-mode
+behaviour — the three canonical input files in `data/inputs/` are used directly).
+
+| Stage | Default | Description | Prerequisite |
+|---|---|---|---|
+| `merge` | `false` | Download z22data Parquet files and assemble wide tables at 10 km / 1 km / 100 m | Internet access; writes to `data/raw/z22/` |
+| `totals` | `false` | Consensus-collapse population total columns; proportional cross-level adjustment | `merge` output in `work/` |
+| `ages` | `false` | Single-year age columns `AGE_0..AGE_100` via trust-mixed IPF | `totals` output in `work/` |
+| `gemeinde` | `false` | Spatial join of BKG VG250 Gemeinde polygons → ARS/Land/Kreis on 100 m cells | `ages` output; `vg250_gpkg_path` |
+| `gender` | `false` | Male/female age split using GENESIS 1000A-2027 per-Gemeinde shares + orphan backfill | `gemeinde` output; `gemeinde_age_csv_path` |
+| `topics8` | `false` | Trust-blended IPF downscaling of 8 original categorical topics 10 km → 1 km → 100 m | `gender` output |
+| `aggs` | `false` | Decade-binned gendered age aggregates (`M_AGE_0_9_agg` … `F_AGE_80_plus_agg`) | `topics8` output |
+| `regiostar` | `false` | Join 7 BBSR RegioStaR 2022 classification columns via 8-digit AGS | `aggs` output; `regiostar_referenzdatei.xlsx` |
+| `extend` | **`true`** | Harmonize additional topics from the catalog (stage_a 10 km→1 km, stage_b 1 km→100 m) | Prepared input files in `data/inputs/` (or `regiostar` output) |
+
+**External file config keys** (pass these as top-level keys under `[stages]` or as TOML
+string values at the top level — they are read via `getattr(cfg, key, None)` at runtime):
+
+| Config key | Stage | Description |
+|---|---|---|
+| `gemeinde_age_csv_path` | `gender` | Path to the GENESIS 1000A-2027 CSV export (population by age and sex at Gemeinde level). Download from [ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027](https://ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027). |
+| `vg250_gpkg_path` | `gemeinde` | Path to BKG VG250 GeoPackage (`DE_VG250.gpkg`, reference date 2022-01-01, EPSG:25832). |
+| `regiostar_ref` | `regiostar` | Path to BBSR `regiostar_referenzdatei.xlsx` (sheet `ReferenzGebietsstand2020`). Default: `data/inputs/regiostar_referenzdatei.xlsx`. |
+
+**CLI flags:**
+
+| Flag | Description |
+|---|---|
+| `--dry-run` | Print the resolved execution plan and exit; no I/O |
+| `--force` | Re-run stages even if their outputs already exist (bypass cache) |
+| `--from <stage>` | Skip all stages before `<stage>` (treat them as already complete) |
+
 ---
 
 ## Example configurations
@@ -137,6 +174,46 @@ mode = "national"
 [run]
 sanity = "warn"       # downgrade to warn so the run always completes
 write_manifest = true
+```
+
+### (d) Full mode — raw→final pipeline (all 11 stages)
+
+Run the complete pipeline from the raw z22data Parquet files through to the final output.
+Requires internet access (merge stage) and the two external reference files (gemeinde/gender).
+
+```toml
+# config_fullmode.toml — complete raw->final pipeline
+[data]
+inputs_dir  = "data/inputs"
+outputs_dir = "data/outputs"
+version_tag = "v2_full"
+
+[harmonize]
+topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"]
+derived_tenure = true
+
+[scope]
+mode = "national"
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true
+totals    = true
+ages      = true
+gemeinde  = true
+gender    = true
+topics8   = true
+aggs      = true
+regiostar = true
+extend    = true
+
+# Paths to external reference files (required for gemeinde and gender stages):
+# gemeinde_age_csv_path = "data/inputs/1000A-2027_de.csv"
+# vg250_gpkg_path       = "data/inputs/DE_VG250.gpkg"
+# regiostar_ref         = "data/inputs/regiostar_referenzdatei.xlsx"
 ```
 
 ---
