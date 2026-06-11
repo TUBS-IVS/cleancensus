@@ -245,15 +245,30 @@ The sanity check only pairs topics within the same universe.
 Output files follow the pattern:
 
 ```
-cells_1km_with_binneds_<version_tag>.parquet
-cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_<version_tag>.parquet
+zensus2022_grid_1km_de_<version_tag>.parquet
+zensus2022_grid_100m_de_<version_tag>.parquet
 ```
 
 For subset runs, the 100 m file is named:
 
 ```
-cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_<version_tag>_SUBSET.parquet
+zensus2022_grid_100m_de_<version_tag>_SUBSET.parquet
 ```
+
+### Legacy artifact names
+
+Earlier pipeline runs (v2/v3 era, before the canonical rename) produced files named:
+
+| Old name (v2/v3 era) | New canonical name |
+|---|---|
+| `cells_1km_with_binneds_<tag>.parquet` | `zensus2022_grid_1km_de_<tag>.parquet` |
+| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_<tag>.parquet` | `zensus2022_grid_100m_de_<tag>.parquet` |
+| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_<tag>_SUBSET.parquet` | `zensus2022_grid_100m_de_<tag>_SUBSET.parquet` |
+
+Note: `zensus2022_grid_100m_de_prepared.parquet` (as found in the eqasim-data repository) is the
+**prepared INPUT** file — a byte-identical rename of the legacy
+`cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` (3,148,482 rows × 570 cols).
+It is **not** a pipeline output; it lives in `data/inputs/` as the starting point for the extend stage.
 
 ### Run manifest fields
 

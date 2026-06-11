@@ -190,8 +190,8 @@ Zahl_der_Staatsang., Grosse_Kernfamilie. These were z11-only and are documented 
 See [`docs/CONFIG.md`](docs/CONFIG.md) for the full `[stages]` reference.
 
 Outputs land in `data/outputs/` (or wherever `outputs_dir` points):
-- `cells_1km_with_binneds_<version_tag>.parquet`
-- `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_<version_tag>.parquet`
+- `zensus2022_grid_1km_de_<version_tag>.parquet`
+- `zensus2022_grid_100m_de_<version_tag>.parquet`
 - `run_manifest_<version_tag>.json`
 
 ---

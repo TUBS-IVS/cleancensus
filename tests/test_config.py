@@ -19,7 +19,7 @@ def test_defaults(tmp_path):
     assert cfg.derived_tenure is False
     assert cfg.derived_vacancy is False
     assert cfg.version_tag == "v2"
-    assert cfg.out_1.name == "cells_1km_with_binneds_v2.parquet"
+    assert cfg.out_1.name == "zensus2022_grid_1km_de_v2.parquet"
 
 
 def test_topics_all_expands_catalog(tmp_path):
