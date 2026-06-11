@@ -37,12 +37,23 @@ Notes on unmapped T: features (z22data does not provide them):
   - Grosse_Kernfamilie_bis6undmehrPers: family_size categories – z11 only
   - Durchschn_Nettokaltmiete_Anzahl_der_Wohnungen: auxiliary count – not published in z22data
 
-Note on building_size vs dwelling_building_size column name SWAP in T: CSV:
-  The T: notebook-era merged CSV has column labels 'Geb_Gebaeudetyp_Groesse' (buildings) and
-  'Wohnung_Gebaeudetyp_Groesse' (dwellings) with their CONTENTS SWAPPED:
-    - z22 'building_size' (buildings)  -> T: 'Wohnung_Gebaeudetyp_Groesse' columns (mislabelled!)
-    - z22 'dwelling_building_size' (dwellings in buildings) -> T: 'Geb_Gebaeudetyp_Groesse' columns
-  The FEATURE_MAP below reproduces the T: naming convention exactly so that gate comparisons pass.
+Note on building_size vs dwelling_building_size (z22data feature names are INVERTED):
+  Systematic debugging (2026-06-11) established the ground truth with the
+  MFH_13undmehrWohnungen discriminator (buildings with 13+ dwellings are FEW,
+  dwellings in such buildings are MANY):
+    - T: merged CSVs are labelled CORRECTLY: Geb_* MFH_13+ = 237,542 (buildings),
+      Wohnung_* MFH_13+ = 5,224,648 (dwellings).
+    - z22data's FEATURE NAMES are inverted relative to their literal meaning:
+      'building_size'          actually contains DWELLINGS by building type
+                               (cat 1 sum 8,665,582 == T: FreiEFH_Wohnung_*, exact)
+      'dwelling_building_size' actually contains BUILDINGS by type
+                               (cat 1 sum 8,665,451 == T: FreiEFH_Geb_*, exact)
+      (most likely a translation mix-up of the two Destatis tables "Gebaeude mit
+      Wohnraum nach Gebaeudetyp/-groesse" vs "Wohnungen in Gebaeuden mit Wohnraum
+      nach Gebaeudetyp/-groesse" in the upstream z22 project).
+  The FEATURE_MAP below therefore maps z22 'building_size' -> Wohnung_* columns and
+  'dwelling_building_size' -> Geb_* columns. This is SEMANTICALLY CORRECT — do not
+  "fix" it to match the literal z22 feature names (guarded by a regression test).
 """
 from __future__ import annotations
 
@@ -166,10 +177,8 @@ FEATURE_MAP: dict[tuple[str, int], str] = {
     # ---- Buildings (Gebäude) -----------------------------------------------
     ("buildings", 0): "Insgesamt_Gebaeude_Gebaeude_nach_Baujahr_in_MZ_Klassen",
 
-    # building_size (counts of BUILDINGS by type+size)
-    # NOTE: In the T: notebook-era CSV, these values appear under 'Wohnung_Gebaeudetyp_Groesse'
-    # column labels (the 'Geb' and 'Wohnung' prefixes are SWAPPED vs what the labels suggest).
-    # We reproduce the T: naming convention for compatibility.
+    # z22 'building_size' ACTUALLY contains DWELLINGS by building type (z22data feature
+    # name is inverted — see module docstring). Wohnung_* targets are semantically correct.
     ("building_size",  1): "FreiEFH_Wohnung_Gebaeudetyp_Groesse",
     ("building_size",  2): "EFH_DHH_Wohnung_Gebaeudetyp_Groesse",
     ("building_size",  3): "EFH_Reihenhaus_Wohnung_Gebaeudetyp_Groesse",
@@ -181,8 +190,8 @@ FEATURE_MAP: dict[tuple[str, int], str] = {
     ("building_size",  9): "MFH_13undmehrWohnungen_Wohnung_Gebaeudetyp_Groesse",
     ("building_size", 10): "AndererGebaeudetyp_Wohnung_Gebaeudetyp_Groesse",
 
-    # dwelling_building_size (counts of DWELLINGS by building type+size)
-    # NOTE: These values appear under 'Geb_Gebaeudetyp_Groesse' in T: (swapped label, see above).
+    # z22 'dwelling_building_size' ACTUALLY contains BUILDINGS by type+size (inverted
+    # z22data feature name — see module docstring). Geb_* targets are semantically correct.
     ("dwelling_building_size",  1): "FreiEFH_Geb_Gebaeudetyp_Groesse",
     ("dwelling_building_size",  2): "EFH_DHH_Geb_Gebaeudetyp_Groesse",
     ("dwelling_building_size",  3): "EFH_Reihenhaus_Geb_Gebaeudetyp_Groesse",
