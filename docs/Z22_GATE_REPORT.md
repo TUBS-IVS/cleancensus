@@ -242,3 +242,111 @@ asserts all 36 z22data feature names are present; `test_minimum_size` now assert
 - **License:** dl-de/by-2-0 (https://www.govdata.de/dl-de/by-2-0)
 - **Census content:** © Statistische Ämter des Bundes und der Länder, Zensus 2022
 - **Grid geometry:** © GeoBasis-DE / BKG 2023 (https://www.bkg.bund.de)
+
+---
+
+## Destatis-CSV Supplement (6 tables) — Gate 2026-06-11
+
+**Source:** 6 Destatis CSV ZIPs in `data/raw/destatis/`, read by `cleancensus.destatis_csv`.
+**Reference:** T: merged CSVs at `T:\petre\UCFL\...\merged\merged_{10km,1km}_gitter.csv`.
+**Gate script:** `tmp_gate_destatis.py` (deleted after use; output below).
+
+### Column mapping summary
+
+The T: merged CSVs contain 47 columns matching the 6 Destatis-table keywords
+(`Seniorenstatus`, `Typ_priv_HH_Familie`, `Typ_priv_HH_Lebensform`, `Religion`,
+`Staatsangehoerigkeiten`, `Kernfamilie`) per level. Of these, **33 are produced by our
+6 ZIPs** (the remaining 14 are from `Typ_der_Kernfamilie_nach_Kindern`, a 7th table
+not in scope for this plan and not downloaded).
+
+Our 6-ZIP supplement produces **33 data columns per level** (+ GITTER_ID = 34 total):
+
+| ZIP | Data columns |
+|-----|-------------|
+| `Seniorenstatus_eines_privaten_Haushalts.zip` | 4 (Insgesamt + 3 categories) |
+| `Typ_des_privaren_Haushalts_Lebensform.zip` | 8 (Insgesamt + 7 categories) |
+| `Typ_des_privaten_Haushalts_Familien.zip` | 6 (Insgesamt + 5 categories) |
+| `Religion.zip` | 4 (Insgesamt + 3 categories) |
+| `Zahl_der_Staatsangehoerigkeiten.zip` | 5 (Insgesamt + 4 categories) |
+| `Groesse_der_Kernfamilie.zip` | 6 (Insgesamt + 5 categories) |
+
+### 10km gate
+
+**Reference frame:** 3,824 rows (T: merged_10km_gitter.csv)
+**Destatis supplement frame:** 3,823 rows (1 cell below Destatis threshold at this level)
+
+| Status | Count | Columns |
+|--------|-------|---------|
+| **EXACT** | 33 | All 33 matched columns |
+| DIFF | 0 | — |
+| MISSING_IN_DESTATIS | 14 | `Typ_der_Kernfamilie_nach_Kindern_*` (out of scope) |
+
+All 33 matched columns gate **EXACT** (national sum diff < 0.5, n_diff = 0 per cell).
+
+Selected national sums (10km):
+
+| Column | T: sum | Destatis sum | Status |
+|--------|--------|-------------|--------|
+| `Insgesamt_Bevoelkerung_Religion_10km-Gitter` | 82,711,382 | 82,711,382 | EXACT |
+| `Roemisch_katholisch_Religion_10km-Gitter` | 20,747,066 | 20,747,066 | EXACT |
+| `Evangelisch_Religion_10km-Gitter` | 19,127,395 | 19,127,395 | EXACT |
+| `Insgesamt_Haushalte_Seniorenstatus_eines_privaten_Haushalts_10km-Gitter` | 40,236,035 | 40,236,035 | EXACT |
+| `HH_nurSenioren_Seniorenstatus_eines_privaten_Haushalts_10km-Gitter` | 9,884,027 | 9,884,027 | EXACT |
+| `Insgesamt_Haushalte_Typ_priv_HH_Familie_10km-Gitter` | 40,236,035 | 40,236,035 | EXACT |
+| `Insgesamt_Haushalte_Typ_priv_HH_Lebensform_10km-Gitter` | 40,236,035 | 40,236,035 | EXACT |
+| `Insgesamt_Bevoelkerung_Zahl_der_Staatsangehoerigkeiten_10km-Gitter` | 82,711,382 | 82,711,382 | EXACT |
+| `Insgesamt_Familien_Grosse_Kernfamilie_bis6undmehrPers_10km-Gitter` | 21,679,953 | 21,679,953 | EXACT |
+
+### 1km gate
+
+**Reference frame:** 212,758 rows (T: merged_1km_gitter.csv)
+**Destatis supplement frame:** 211,420 rows (disclosure suppression at cell level reduces row count)
+
+| Status | Count | Columns |
+|--------|-------|---------|
+| **EXACT** | 33 | All 33 matched columns |
+| DIFF | 0 | — |
+| MISSING_IN_DESTATIS | 14 | `Typ_der_Kernfamilie_nach_Kindern_*` (out of scope) |
+
+All 33 matched columns gate **EXACT** (national sum diff < 0.5, n_diff = 0 per cell).
+
+Selected national sums (1km):
+
+| Column | T: sum | Destatis sum | Status |
+|--------|--------|-------------|--------|
+| `Insgesamt_Bevoelkerung_Religion_1km-Gitter` | 82,706,460 | 82,706,460 | EXACT |
+| `Insgesamt_Haushalte_Seniorenstatus_eines_privaten_Haushalts_1km-Gitter` | 40,221,501 | 40,221,501 | EXACT |
+| `Insgesamt_Haushalte_Typ_priv_HH_Familie_1km-Gitter` | 40,221,501 | 40,221,501 | EXACT |
+| `EineStaatsang_Zahl_der_Staatsangehoerigkeiten_1km-Gitter` | 76,502,215 | 76,502,215 | EXACT |
+| `Insgesamt_Familien_Grosse_Kernfamilie_bis6undmehrPers_1km-Gitter` | 21,659,733 | 21,659,733 | EXACT |
+
+### 100m spot-check (national aggregate)
+
+No 100m T: reference CSV is available in a tractable form for cell-by-cell comparison
+(1.8 GB file, not loaded). National aggregate sums from the 100m Destatis frame were
+verified for plausibility against the 10km/1km sums (lower due to expected cell-level
+suppression at 100m resolution, consistent with the z22data household-total pattern).
+
+**100m frame:** 3,112,920 rows, 33 data columns + GITTER_ID.
+
+| Column | 100m national sum | 10km national sum | Note |
+|--------|------------------|-------------------|------|
+| `Insgesamt_Bevoelkerung_Religion_100m-Gitter` | 82,570,995 | 82,711,382 | Lower due to 100m suppression |
+| `Roemisch_katholisch_Religion_100m-Gitter` | 20,635,109 | 20,747,066 | Consistent ratio |
+| `Insgesamt_Haushalte_Seniorenstatus_*_100m-Gitter` | 39,615,530 | 40,236,035 | Lower — expected at 100m |
+| `HH_nurSenioren_Seniorenstatus_*_100m-Gitter` | 9,475,972 | 9,884,027 | Consistent ratio |
+
+### Missing-destatis-dir behaviour
+
+If `data/raw/destatis/` does not exist:
+- `run_merge_z22` logs: `"destatis_raw_dir not found — Destatis supplement skipped (z22-only mode)"`
+- The merged parquets are written without the 6 Destatis tables.
+- All existing z22data columns are unaffected.
+- Downstream stages (totals, ages, etc.) are not impacted.
+
+### Out-of-scope T: columns (not blocked)
+
+The 14 columns named `*_Typ_der_Kernfamilie_nach_Kindern_{level}-Gitter` appear in the T:
+merged CSVs but are not produced by any of the 6 ZIPs in scope. They come from the separate
+`Typ_der_Kernfamilie_nach_Kindern.zip` (also available in Downloads) but was not part of
+the P1 plan. These columns should be added in a future P2 task if needed.
