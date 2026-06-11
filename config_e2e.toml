@@ -1,0 +1,29 @@
+# Full national end-to-end validation run: raw z22data/Destatis -> final product.
+# All 12 stages enabled. Resumable via stage caching (--from / skip-cached).
+# Throwaway version tag "e2e"; compare against the validated v2/v3 artifacts afterwards.
+
+[data]
+version_tag = "e2e"
+
+[harmonize]
+topics = ["Whg_Gebaeudetyp", "Geb_Gebaeudetyp", "Geb_AnzahlWohnungen", "HH_Seniorenstatus"]
+derived_tenure = true
+derived_vacancy = true
+
+[scope]
+mode = "national"
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true
+totals    = true
+ages      = true
+gemeinde  = true
+gender    = true
+topics8   = true
+aggs      = true
+regiostar = true
+extend    = true
