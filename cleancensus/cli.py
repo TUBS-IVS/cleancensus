@@ -5,6 +5,7 @@ Usage:
   uv run cleancensus --config config.toml --dry-run
   uv run cleancensus --config config.toml --force
   uv run cleancensus --config config.toml --from gender
+  uv run cleancensus --config config.toml --gemeinde-controls
 """
 from __future__ import annotations
 
@@ -37,9 +38,32 @@ def main(argv: list[str] | None = None) -> int:
                     help="re-run enabled stages even if their output already exists")
     ap.add_argument("--from", dest="from_stage", default=None,
                     help="run from this stage onward (earlier enabled stages are skipped)")
+    ap.add_argument(
+        "--gemeinde-controls",
+        action="store_true",
+        dest="gemeinde_controls",
+        help=(
+            "Parse Zensus Regionaltabellen (P2/P4) into Gemeinde-level control tables "
+            "(Erwerbsstatus, Schulabschluss, berufl. Abschluss) and write parquets to "
+            "outputs_dir/gemeinde_controls/. Runs immediately after config load; "
+            "skips all pipeline stages. Source file: "
+            "data/raw/regionaltabellen/Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx "
+            "(or set regionaltabellen_xlsx in your config)."
+        ),
+    )
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
+
+    # --gemeinde-controls: parse Regionaltabellen and exit
+    if args.gemeinde_controls:
+        from cleancensus.gemeinde_controls import run_gemeinde_controls
+        print(f"cleancensus {__version__} | config: {cfg.config_path}")
+        print("[gemeinde-controls] parsing Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx ...")
+        run_gemeinde_controls(cfg)
+        print("[gemeinde-controls] done")
+        return 0
+
     steps = plan(cfg, force=args.force, from_stage=args.from_stage)
 
     print(f"cleancensus {__version__} | config: {cfg.config_path}")
