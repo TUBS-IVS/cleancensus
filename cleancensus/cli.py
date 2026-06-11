@@ -45,10 +45,26 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Parse Zensus Regionaltabellen (P2/P4) into Gemeinde-level control tables "
             "(Erwerbsstatus, Schulabschluss, berufl. Abschluss) and write parquets to "
-            "outputs_dir/gemeinde_controls/. Runs immediately after config load; "
+            "outputs_dir/gemeinde_controls/. Also writes Kreis-level tables "
+            "(kreis_erwerbsstatus, kreis_schulabschluss, kreis_berufl_abschluss) which "
+            "have 0% suppression. Runs immediately after config load; "
             "skips all pipeline stages. Source file: "
             "data/raw/regionaltabellen/Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx "
             "(or set regionaltabellen_xlsx in your config)."
+        ),
+    )
+    ap.add_argument(
+        "--fill",
+        dest="fill",
+        choices=["none", "harmonize"],
+        default="none",
+        help=(
+            "Suppression handling for Gemeinde tables (requires --gemeinde-controls). "
+            "none (default): keep NaN for suppressed cells. "
+            "harmonize: fill suppressed cells using Kreis-level distribution downscaling "
+            "(population-weighted remainder allocation + trust-blended IPF). "
+            "Adds is_estimated bool column. "
+            "Requires data/raw/regionaltabellen/Regionaltabelle_Bevoelkerung.xlsx."
         ),
     )
     args = ap.parse_args(argv)
@@ -60,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         from cleancensus.gemeinde_controls import run_gemeinde_controls
         print(f"cleancensus {__version__} | config: {cfg.config_path}")
         print("[gemeinde-controls] parsing Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx ...")
-        run_gemeinde_controls(cfg)
+        run_gemeinde_controls(cfg, fill=args.fill)
         print("[gemeinde-controls] done")
         return 0
 

@@ -236,3 +236,37 @@ Outputs are written to `<outputs_dir>/gemeinde_controls/`:
 - `berufl_abschluss.parquet`
 
 Source: `cleancensus/gemeinde_controls.py` — `build_gemeinde_controls()` / `run_gemeinde_controls()`.
+
+## Suppression handling (approved design, 2026-06-11)
+
+Two output levels per table (see `docs/superpowers/specs/2026-06-11-gemeinde-controls-suppression-design.md`):
+
+1. **Kreis tables (`kreis_*.parquet`) — always written, exact.** Source Kreis rows are
+   copied verbatim. Kreis-level suppression is 0% for Erwerbsstatus; Bildung tables have
+   a small residue (Schulabschluss 76/9,600 = 0.8%, berufl. Abschluss 472/12,000 = 3.9%
+   cells, concentrated in fine gender x Promotion splits). **Recommendation for ZGB runs:
+   use the Kreis level as the control geography** (BS/SZ/WOB are kreisfrei, so Kreis ==
+   Stadt there).
+2. **Gemeinde completion (`--fill harmonize`) — optional, estimated.** Each Kreis acts as
+   the parent of its Gemeinden; unsuppressed Gemeinden carry local signal, suppressed ones
+   receive population-weighted totals and trust-blended category fills (the repo's standard
+   downscaling machinery over the ARS hierarchy). `is_estimated` flags every row that had
+   any suppressed value. Logged per category: estimated-Gemeinde count + their population
+   share (~9,200 Gemeinden / ~26% of population for the main categories).
+
+Guarantees with `--fill harmonize`:
+- Sum(Gemeinden) == Kreis per category **wherever the Kreis value is observed**
+  (max abs diff 0.0000 in the national run).
+- Where the Kreis value itself is suppressed (Bildung fine splits, see above), no sharp
+  target exists; both levels are then model-based and the reported per-category
+  "max sum-vs-Kreis abs diff" can be non-zero (observed up to ~240 on national category
+  masses of millions, i.e. rel ~1e-4).
+- Observed Gemeinden are only touched by the per-Kreis feasibility rescale
+  (max |scale-1| ~ 1e-3, logged) — published rounding makes Gemeinde and Kreis
+  "Insgesamt" values mutually inconsistent by a few persons (e.g. kreisfreie Stadt
+  Zweibrücken: delta = 10).
+- Degenerate Kreise (parent mass but zero child signal because the Kreis total of that
+  category was suppressed) fall back to an equal split, mirroring make_child_totals_adj.
+
+**Overspecification reminder:** prefer few reliable controls; Gemeinde-level estimated
+values should only become popsim controls after a measure-gain check (eqasim-side).
