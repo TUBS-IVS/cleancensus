@@ -344,9 +344,112 @@ If `data/raw/destatis/` does not exist:
 - All existing z22data columns are unaffected.
 - Downstream stages (totals, ages, etc.) are not impacted.
 
-### Out-of-scope T: columns (not blocked)
+### Out-of-scope T: columns (resolved in T2, 2026-06-11)
 
-The 14 columns named `*_Typ_der_Kernfamilie_nach_Kindern_{level}-Gitter` appear in the T:
-merged CSVs but are not produced by any of the 6 ZIPs in scope. They come from the separate
-`Typ_der_Kernfamilie_nach_Kindern.zip` (also available in Downloads) but was not part of
-the P1 plan. These columns should be added in a future P2 task if needed.
+The 14 columns named `*_Typ_der_Kernfamilie_nach_Kindern_{level}-Gitter` that were previously
+out-of-scope are now covered by the 7th Destatis table entry added in T2 (see section below).
+
+---
+
+## 7th Destatis-CSV Table: Typ_der_Kernfamilie_nach_Kindern — Gate 2026-06-11
+
+**ZIP:** `Typ_der_Kernfamilie_nach_Kindern.zip` → `data/raw/destatis/`
+**CSV path in ZIP:** `Typ_der_Kernfamilie_nach_Kindern/Zensus2022_Typ_der_Kernfamilie_nach_Kindern_{level}-Gitter.csv`
+**Data columns:** 14 (Insgesamt_Familie + 13 family-type-by-children categories)
+**T: reference:** `merged_10km_gitter.csv` / `merged_1km_gitter.csv`
+
+### 10km gate
+
+**Reference frame:** 3,824 rows (T: merged_10km_gitter.csv)
+**Destatis frame:** 3,815 rows (9 cells below Destatis disclosure threshold at 10km)
+
+| Status | Count | Columns |
+|--------|-------|---------|
+| **EXACT** | 14 | All 14 data columns |
+| DIFF | 0 | — |
+
+Selected national sums (10km):
+
+| Column | T: sum | Destatis sum | Status |
+|--------|--------|-------------|--------|
+| `Insgesamt_Familie_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter` | 21,679,953 | 21,679,953 | EXACT |
+| `Ehep_ohneKind_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter` | 8,207,692 | 8,207,692 | EXACT |
+| `Ehep_mind_1Kind_unter18_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter` | 5,220,864 | 5,220,864 | EXACT |
+| `NichtehelLG_ohneKind_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter` | 1,907,110 | 1,907,110 | EXACT |
+| `Mutter_mind_1Kind_unter18_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter` | 1,439,162 | 1,439,162 | EXACT |
+
+### 1km gate
+
+**Reference frame:** 212,758 rows (T: merged_1km_gitter.csv)
+**Destatis frame:** 184,744 rows (disclosure suppression at 1km resolution)
+
+| Status | Count | Columns |
+|--------|-------|---------|
+| **EXACT** | 14 | All 14 data columns |
+| DIFF | 0 | — |
+
+Selected national sums (1km):
+
+| Column | T: sum | Destatis sum | Status |
+|--------|--------|-------------|--------|
+| `Insgesamt_Familie_Typ_der_Kernfamilie_nach_Kindern_1km-Gitter` | 21,659,733 | 21,659,733 | EXACT |
+| `Ehep_ohneKind_Typ_der_Kernfamilie_nach_Kindern_1km-Gitter` | 8,159,801 | 8,159,801 | EXACT |
+| `Mutter_mind_1Kind_unter18_Typ_der_Kernfamilie_nach_Kindern_1km-Gitter` | 1,430,849 | 1,430,849 | EXACT |
+
+All 14 columns gate **EXACT** at both 10km and 1km (national sum diff = 0, n_diff = 0 per cell on the inner join).
+
+---
+
+## RegioStaR Stage: BBSR Referenz Gemeinden Gebietsstand 31.12.2022 — Gate 2026-06-11
+
+**Source:** BBSR Referenz Gemeinden Gebietsstand 31.12.2022
+**URL:** `https://www.bbsr.bund.de/.../raumgliederungen-referenzen-2022.xlsx?__blob=publicationFile&v=2`
+**Local path:** `data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx`
+**Sheet:** `Gemeindereferenz (inkl. Kreise)` (10,990 Gemeinden)
+
+### Column mapping (BBSR 2022 → canonical output)
+
+| BBSR 2022 column | Description | Output column | Method |
+|------------------|-------------|---------------|--------|
+| `GEM2022` | Gemeindekennziffer (8-digit AGS) | `commune_id` | zero-padded to 8 chars |
+| `RS22022` | RegioStaR 2 | `RegioStaR2` | direct |
+| `RSS2022` | RegioStaR 17 | `RegioStaR17` | direct |
+| `RSS2022 // 10` | — | `RegioStaR4` | derived (100% match verified) |
+| `RS72022` | RegioStaR 7 | `RegioStaR7` | direct (99.97% match vs BMDV2020) |
+| `RS52022` | Gemeindetyp 5 | `RegioStaRGem5` | direct (99.98% match vs BMDV2020) |
+| *(absent)* | — | `RegioStaR5` | NaN — not in BBSR 2022 Gemeindereferenz |
+| *(absent)* | — | `RegioStaRGem7` | NaN — not in BBSR 2022 Gemeindereferenz |
+
+Note: `RegioStaR5` (Stadtregion 5-type) and `RegioStaRGem7` (Gemeinde 7-type) are not published
+in the BBSR 2022 Gemeindereferenz sheet. They remain available in the BMDV Gebietsstand2020
+fallback file (activated automatically when the BBSR 2022 file is absent).
+
+### Match rate (BBSR 2022 vs BMDV 2020 on shared municipalities)
+
+| Column | Match rate (inner join, 10,985 communes) |
+|--------|------------------------------------------|
+| `RegioStaR2` | 99.99% |
+| `RegioStaR17` | 99.97% |
+| `RegioStaR4` (derived) | 100.00% (by construction from RS17) |
+| `RegioStaR7` | 99.97% |
+| `RegioStaRGem5` | 99.98% |
+
+Near-unity match rates reflect genuine reclassifications between Gebietsstand 2020 and 2022
+(~3 communes changed type), not mapping errors.
+
+### Null-rim improvement
+
+The null-rim (cells with an ARS that gets no RegioStaR match) is computed on the canonical
+100m parquet (`cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet`,
+3,148,482 rows).
+
+| Reference | Null RegioStaR2 cells | Source |
+|-----------|----------------------|--------|
+| BMDV Gebietsstand2020 (prior) | 5,188 | canonical parquet |
+| BBSR Gebietsstand2022 (new) | **633** | recomputed via AGS8 join |
+| **Improvement** | **−4,555 cells** | |
+
+The remaining 633 null cells all have a non-null ARS but their AGS8 (derived from ARS via
+`ARS[0:5]+ARS[9:12]`) does not appear in the BBSR 2022 Gemeindereferenz. These are likely
+Zensus 2022 grid cells on the edges of special administrative areas (e.g. Bodensee,
+extraterritorial grid cells coded as AGS 99xxxxx) that are not Gemeinden in the BBSR reference.

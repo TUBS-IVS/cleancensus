@@ -1,6 +1,6 @@
-"""Read the 6 Destatis-CSV ZIP supplements not available in z22data.
+"""Read the 7 Destatis-CSV ZIP supplements not available in z22data.
 
-These 6 Zensus 2022 Gitterzellen topics were not published in the z22data GitHub
+These 7 Zensus 2022 Gitterzellen topics were not published in the z22data GitHub
 mirror (JsLth/z22data) and must be read from the official Destatis CSV ZIPs,
 which the user downloads manually from:
   https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Bevoelkerung/Zensus2022/
@@ -124,6 +124,29 @@ DESTATIS_TABLES: dict[str, dict] = {
             "a4Personen",
             "a5Personen",
             "a6Pers_und_mehr",
+        ],
+    },
+    "Typ_der_Kernfamilie_nach_Kindern.zip": {
+        "csv_names": {
+            "10km": "Typ_der_Kernfamilie_nach_Kindern/Zensus2022_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter.csv",
+            "1km":  "Typ_der_Kernfamilie_nach_Kindern/Zensus2022_Typ_der_Kernfamilie_nach_Kindern_1km-Gitter.csv",
+            "100m": "Typ_der_Kernfamilie_nach_Kindern/Zensus2022_Typ_der_Kernfamilie_nach_Kindern_100m-Gitter.csv",
+        },
+        "data_cols": [
+            "Insgesamt_Familie",
+            "Ehep_ohneKind",
+            "Ehep_mind_1Kind_unter18",
+            "Ehep_Kinder_ab18",
+            "EingetrLP_ohneKind",
+            "EingetrLP_mind_1Kind_unter18",
+            "EingetrLP_Kinder_ab18",
+            "NichtehelLG_ohneKind",
+            "NichtehelLG_mind_1Kind_unter18",
+            "NichtehelLG_Kinder_ab18",
+            "Vater_mind_1Kind_unter18",
+            "Vater_Kinder_ab18",
+            "Mutter_mind_1Kind_unter18",
+            "Mutter_Kinder_ab18",
         ],
     },
 }
@@ -260,14 +283,14 @@ def read_destatis_zip(zip_path: str | Path, level: str) -> "pd.DataFrame":
 # ---------------------------------------------------------------------------
 
 def merge_destatis_tables(level: str, raw_dir: str | Path) -> "pd.DataFrame | None":
-    """Read all 6 Destatis ZIPs for the given level and outer-merge on GITTER_ID.
+    """Read all 7 Destatis ZIPs for the given level and outer-merge on GITTER_ID.
 
     Parameters
     ----------
     level : str
         "10km", "1km", or "100m".
     raw_dir : Path
-        Directory containing the 6 ZIP files.
+        Directory containing the 7 ZIP files.
 
     Returns
     -------

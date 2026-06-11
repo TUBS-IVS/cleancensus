@@ -30,9 +30,9 @@ class TestDesatisTablesRegistry:
         from cleancensus.destatis_csv import DESTATIS_TABLES
         assert isinstance(DESTATIS_TABLES, dict)
 
-    def test_six_tables_registered(self):
+    def test_seven_tables_registered(self):
         from cleancensus.destatis_csv import DESTATIS_TABLES
-        assert len(DESTATIS_TABLES) == 6
+        assert len(DESTATIS_TABLES) == 7
 
     def test_all_required_zip_names_present(self):
         from cleancensus.destatis_csv import DESTATIS_TABLES
@@ -43,6 +43,7 @@ class TestDesatisTablesRegistry:
             "Religion.zip",
             "Zahl_der_Staatsangehoerigkeiten.zip",
             "Groesse_der_Kernfamilie.zip",
+            "Typ_der_Kernfamilie_nach_Kindern.zip",
         }
         assert set(DESTATIS_TABLES.keys()) == required_zips
 
@@ -77,6 +78,34 @@ class TestDesatisTablesRegistry:
             "Insgesamt_Bevoelkerung", "Roemisch_katholisch",
             "Evangelisch", "Sonstige_keine_ohneAngabe",
         }
+
+    def test_typ_der_kernfamilie_nach_kindern_data_cols(self):
+        from cleancensus.destatis_csv import DESTATIS_TABLES
+        info = DESTATIS_TABLES["Typ_der_Kernfamilie_nach_Kindern.zip"]
+        assert set(info["data_cols"]) == {
+            "Insgesamt_Familie",
+            "Ehep_ohneKind",
+            "Ehep_mind_1Kind_unter18",
+            "Ehep_Kinder_ab18",
+            "EingetrLP_ohneKind",
+            "EingetrLP_mind_1Kind_unter18",
+            "EingetrLP_Kinder_ab18",
+            "NichtehelLG_ohneKind",
+            "NichtehelLG_mind_1Kind_unter18",
+            "NichtehelLG_Kinder_ab18",
+            "Vater_mind_1Kind_unter18",
+            "Vater_Kinder_ab18",
+            "Mutter_mind_1Kind_unter18",
+            "Mutter_Kinder_ab18",
+        }
+        assert len(info["data_cols"]) == 14
+
+    def test_typ_der_kernfamilie_nach_kindern_csv_names(self):
+        from cleancensus.destatis_csv import DESTATIS_TABLES
+        info = DESTATIS_TABLES["Typ_der_Kernfamilie_nach_Kindern.zip"]
+        for level in ("10km", "1km", "100m"):
+            assert level in info["csv_names"]
+            assert f"Zensus2022_Typ_der_Kernfamilie_nach_Kindern_{level}-Gitter.csv" in info["csv_names"][level]
 
 
 class TestColumnNaming:
@@ -115,6 +144,22 @@ class TestColumnNaming:
             "Zensus2022_Grosse_Kernfamilie_bis6undmehrPers_10km-Gitter.csv",
         )
         assert result == "a2Personen_Grosse_Kernfamilie_bis6undmehrPers_10km-Gitter"
+
+    def test_column_name_typ_der_kernfamilie_nach_kindern_10km(self):
+        from cleancensus.destatis_csv import build_col_name
+        result = build_col_name(
+            "Ehep_mind_1Kind_unter18",
+            "Zensus2022_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter.csv",
+        )
+        assert result == "Ehep_mind_1Kind_unter18_Typ_der_Kernfamilie_nach_Kindern_10km-Gitter"
+
+    def test_column_name_typ_der_kernfamilie_insgesamt_1km(self):
+        from cleancensus.destatis_csv import build_col_name
+        result = build_col_name(
+            "Insgesamt_Familie",
+            "Zensus2022_Typ_der_Kernfamilie_nach_Kindern_1km-Gitter.csv",
+        )
+        assert result == "Insgesamt_Familie_Typ_der_Kernfamilie_nach_Kindern_1km-Gitter"
 
 
 class TestReadDesatisZip:
