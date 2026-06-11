@@ -203,6 +203,38 @@ figure reflects an **earlier z22data release**. No discrepancy exists in the cur
 
 ---
 
+## Coverage Completion (Part A, 2026-06-11)
+
+**All 36 z22data features are now fully mapped in `FEATURE_MAP` (160 entries total).**
+
+The three features that have no T:-counterpart were verified for plausibility on the 10km
+national aggregate.  National values are read from the `z22data` 10km parquets and reported
+below.
+
+| Feature | FEATURE_MAP base name | T: counterpart | National 10km value | Plausibility |
+|---------|----------------------|---------------|---------------------|--------------|
+| `vacancies` | `Leerstandsquote_Leerstandsquote` | None | ~0.029 (2.9 % mean share) | Consistent with official Zensus 2022 vacancy rate ≈ 3 % |
+| `market_vacancies` | `marktaktive_Leerstandsquote_Marktaktive_Leerstandsquote` | None | ~0.014 (1.4 % mean share) | Lower than total vacancy rate — expected (market-active subset) |
+| `owner_occupier` | `Eigentuemerquote_Eigentuemerquote` | None | ~0.442 national mean | Consistent with validated pipeline value 0.4419 (see README Validated results) |
+
+The naming convention `<Label>_<Table>` follows the z22 R-package label scheme (German labels
+sourced from the official `z22` R package metadata at https://github.com/JsLth/z22). The
+`marktaktive_Leerstandsquote` prefix matches the Destatis table label for
+"marktaktive Leerstandsquote" (market-active vacancy share, i.e. vacancies potentially
+available for the market), distinguishing it from the broader `Leerstandsquote` (all
+vacancies including structurally vacant units).
+
+**Docstring "missing in z22data" list remains unchanged:** the six topics listed in the
+`z22.py` module docstring (Seniorenstatus, Lebensform, Typ_HH_Familie, Religion,
+Zahl_der_Staatsang., Grosse_Kernfamilie) are confirmed absent from z22data and not
+available in the z22data GitHub mirror, consistent with the T:-only table in this report.
+
+**Test guard added:** `tests/test_z22.py::TestFeatureMapShape::test_all_36_z22data_features_present`
+asserts all 36 z22data feature names are present; `test_minimum_size` now asserts
+`>= 160` (was `>= 100`).
+
+---
+
 ## Attribution
 
 - **Source data:** z22data GitHub mirror by Jonas Lieth (https://github.com/JsLth/z22data)

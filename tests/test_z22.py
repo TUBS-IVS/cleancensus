@@ -86,8 +86,34 @@ class TestFeatureMapShape:
 
     def test_minimum_size(self):
         from cleancensus.z22 import FEATURE_MAP
-        # We know there are ~160 entries (verified during development)
-        assert len(FEATURE_MAP) >= 100, f"FEATURE_MAP too small: {len(FEATURE_MAP)} entries"
+        # Verified complete: all 36 z22data features fully mapped = 160 entries
+        # (spot-gated 2026-06-11; see docs/Z22_GATE_REPORT.md "Coverage completion")
+        assert len(FEATURE_MAP) >= 160, f"FEATURE_MAP too small: {len(FEATURE_MAP)} entries (expected >= 160)"
+
+    def test_all_36_z22data_features_present(self):
+        """All 36 z22data 100m feature names must have at least one FEATURE_MAP entry."""
+        from cleancensus.z22 import FEATURE_MAP
+        required = {
+            "age_avg", "age_from_65", "age_long", "age_short", "age_under_18",
+            "birth_country", "building_constr_year", "building_dwellings",
+            "building_heat_src", "building_heat_type", "building_size", "buildings",
+            "citizens", "citizenship", "citizenship_group", "dwelling_building_size",
+            "dwelling_heat_src", "dwelling_heat_type", "dwelling_rooms", "dwelling_space",
+            "dwellings", "families", "family_type", "floor_space", "foreigners",
+            "foreigners_from_18", "household_size_avg", "household_size_group",
+            "households", "inhabitant_space", "marital_status", "market_vacancies",
+            "owner_occupier", "population", "rent_avg", "vacancies",
+        }
+        mapped = {feat for feat, _cat in FEATURE_MAP}
+        missing = required - mapped
+        assert not missing, f"Features missing from FEATURE_MAP: {sorted(missing)}"
+
+    def test_vacancies_features_present(self):
+        """vacancies and market_vacancies (Leerstand) must be mapped (no T: counterpart)."""
+        from cleancensus.z22 import FEATURE_MAP
+        assert ("vacancies", 0) in FEATURE_MAP, "vacancies_0 missing"
+        assert ("market_vacancies", 0) in FEATURE_MAP, "market_vacancies_0 missing"
+        assert ("owner_occupier", 0) in FEATURE_MAP, "owner_occupier_0 missing"
 
     def test_population_key_present(self):
         from cleancensus.z22 import FEATURE_MAP
