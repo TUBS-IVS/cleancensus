@@ -48,6 +48,54 @@ class TestDesatisTablesRegistry:
         }
         assert set(DESTATIS_TABLES.keys()) == required_zips
 
+
+class TestDesatisTotalsOnlyRegistry:
+    def test_totals_only_imported(self):
+        from cleancensus.destatis_csv import DESTATIS_TOTALS_ONLY
+        assert isinstance(DESTATIS_TOTALS_ONLY, dict)
+
+    def test_fifteen_entries_registered(self):
+        from cleancensus.destatis_csv import DESTATIS_TOTALS_ONLY
+        assert len(DESTATIS_TOTALS_ONLY) == 15
+
+    def test_all_required_totals_zips_present(self):
+        from cleancensus.destatis_csv import DESTATIS_TOTALS_ONLY
+        required = {
+            "Familienstand_in_Gitterzellen.zip",
+            "Zensus2022_Energietraeger.zip",
+            "Gebaeude_mit_Wohnraum_nach_ueberwiegender_Heizungsart.zip",
+            "Zensus2022_Groesse_des_privaten_Haushalts_in_Gitterzellen.zip",
+            "Wohnungen_nach_Zahl_der_Raeume.zip",
+            "Flaeche_der_Wohnung_10m2_Intervalle.zip",
+            "Zensus2022_Geburtsland_Gruppen_in_Gitterzellen.zip",
+            "Wohnungen_nach_Gebaeudetyp_Groesse.zip",
+            "Gebaeude_mit_Wohnraum_nach_Gebaeudetyp_Groesse.zip",
+            "Gebaeude_nach_Anzahl_der_Wohnungen_im_Gebaeude.zip",
+            "Gebaeude_nach_Baujahr_in_Mikrozensus_Klassen.zip",
+            "Gebaeude_mit_Wohnraum_nach_Energietraeger_der_Heizung.zip",
+            "Zensus2022_Heizungsart.zip",
+            "Zensus2022_Staatsangehoerigkeit_in_Gitterzellen.zip",
+            "Zensus2022_Staatsangehoerigkeit_Gruppen_in_Gitterzellen.zip",
+        }
+        assert set(DESTATIS_TOTALS_ONLY.keys()) == required
+
+    def test_each_entry_has_insgesamt_col(self):
+        from cleancensus.destatis_csv import DESTATIS_TOTALS_ONLY
+        for zip_name, info in DESTATIS_TOTALS_ONLY.items():
+            assert "insgesamt_col" in info, f"{zip_name} missing 'insgesamt_col'"
+            assert info["insgesamt_col"].startswith("Insgesamt"), (
+                f"{zip_name}: insgesamt_col {info['insgesamt_col']!r} does not start "
+                "with 'Insgesamt'"
+            )
+
+    def test_each_entry_has_csv_names_for_all_levels(self):
+        from cleancensus.destatis_csv import DESTATIS_TOTALS_ONLY
+        for zip_name, info in DESTATIS_TOTALS_ONLY.items():
+            for level in ("10km", "1km", "100m"):
+                assert level in info["csv_names"], (
+                    f"{zip_name} missing csv_names[{level!r}]"
+                )
+
     def test_each_table_has_csv_names_for_all_levels(self):
         from cleancensus.destatis_csv import DESTATIS_TABLES
         for zip_name, info in DESTATIS_TABLES.items():
@@ -327,3 +375,183 @@ class TestMergeWithZ22Integration:
         assert pd.isna(result["Roemisch_katolisch_Religion_10km-Gitter".replace("katol", "kathol")].iloc[2])
         # First two rows should have values
         assert result["Roemisch_katholisch_Religion_10km-Gitter"].iloc[0] == 40.0
+
+
+class TestReadDesatisTotalsZip:
+    """Unit tests for read_destatis_totals_zip (DESTATIS_TOTALS_ONLY)."""
+
+    def _make_fake_familienstand_zip(self, tmp_path):
+        """Write a minimal fake Familienstand ZIP and return path."""
+        import io, zipfile
+        csv_content = (
+            "GITTER_ID_10km;x_mp_10km;y_mp_10km;Insgesamt_Bevoelkerung;Ledig;Verheiratet;Verwitwet;Geschieden\n"
+            "CRS3035RES10000mN2680000E4330000;4335000;2685000;100;40;45;5;10\n"
+            "CRS3035RES10000mN2690000E4330000;4335000;2695000;200;80;90;10;20\n"
+        )
+        zip_path = tmp_path / "Familienstand_in_Gitterzellen.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("Zensus2022_Familienstand_10km-Gitter.csv", csv_content)
+        return zip_path
+
+    def test_read_totals_returns_dataframe(self, tmp_path):
+        import pandas as pd
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = self._make_fake_familienstand_zip(tmp_path)
+        df = read_destatis_totals_zip(zip_path, "10km")
+        assert isinstance(df, pd.DataFrame)
+
+    def test_read_totals_has_exactly_two_columns(self, tmp_path):
+        """Only GITTER_ID + the single Insgesamt column should remain."""
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = self._make_fake_familienstand_zip(tmp_path)
+        df = read_destatis_totals_zip(zip_path, "10km")
+        assert len(df.columns) == 2
+
+    def test_read_totals_drops_category_columns(self, tmp_path):
+        """Category columns (Ledig, Verheiratet, etc.) must NOT be in the output."""
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = self._make_fake_familienstand_zip(tmp_path)
+        df = read_destatis_totals_zip(zip_path, "10km")
+        for cat in ("Ledig", "Verheiratet", "Verwitwet", "Geschieden"):
+            assert not any(cat in c for c in df.columns), (
+                f"Category column containing {cat!r} found in output (should be dropped)"
+            )
+
+    def test_read_totals_column_name_matches_t_convention(self, tmp_path):
+        """Produced column name must match T: canonical name exactly."""
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = self._make_fake_familienstand_zip(tmp_path)
+        df = read_destatis_totals_zip(zip_path, "10km")
+        expected_col = "Insgesamt_Bevoelkerung_Familienstand_10km-Gitter"
+        assert expected_col in df.columns, (
+            f"Expected {expected_col!r} in columns, got {list(df.columns)}"
+        )
+
+    def test_read_totals_values_are_numeric(self, tmp_path):
+        """Insgesamt column values must be numeric (int or float, not object)."""
+        import pandas as pd
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = self._make_fake_familienstand_zip(tmp_path)
+        df = read_destatis_totals_zip(zip_path, "10km")
+        col = "Insgesamt_Bevoelkerung_Familienstand_10km-Gitter"
+        assert pd.api.types.is_numeric_dtype(df[col])
+        assert df[col].iloc[0] == 100
+
+    def test_read_totals_drops_xy_columns(self, tmp_path):
+        """Coordinate columns must be dropped."""
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = self._make_fake_familienstand_zip(tmp_path)
+        df = read_destatis_totals_zip(zip_path, "10km")
+        assert "x_mp_10km" not in df.columns
+        assert "y_mp_10km" not in df.columns
+
+    def test_read_totals_unknown_zip_raises(self, tmp_path):
+        """read_destatis_totals_zip must raise ValueError for unknown ZIPs."""
+        import zipfile
+        from cleancensus.destatis_csv import read_destatis_totals_zip
+        zip_path = tmp_path / "NotRegistered.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("dummy.csv", "a;b\n1;2\n")
+        import pytest
+        with pytest.raises(ValueError, match="Unknown ZIP"):
+            read_destatis_totals_zip(zip_path, "10km")
+
+
+class TestInsgesamtFilterOnSyntheticFrame:
+    """Verify that only Insgesamt_* columns pass the totals-only filter."""
+
+    def test_insgesamt_filter_keeps_only_insgesamt(self):
+        """Simulates the filter: given a frame with many cols, only Insgesamt_* survive."""
+        import pandas as pd
+        cols = [
+            "GITTER_ID_10km",
+            "Insgesamt_Bevoelkerung",
+            "Ledig",
+            "Verheiratet",
+            "Verwitwet",
+            "Geschieden",
+        ]
+        df = pd.DataFrame({c: [1] for c in cols})
+        # Replicate the filter logic from read_destatis_totals_zip (keep GITTER_ID + Insgesamt*)
+        insgesamt_col = "Insgesamt_Bevoelkerung"
+        gid_col = "GITTER_ID_10km"
+        filtered = df[[gid_col, insgesamt_col]]
+        assert list(filtered.columns) == [gid_col, insgesamt_col]
+        assert "Ledig" not in filtered.columns
+        assert "Verheiratet" not in filtered.columns
+
+    def test_insgesamt_filter_multiple_insgesamt_cols(self):
+        """If a frame has multiple Insgesamt_* columns, the explicit insgesamt_col
+        selection (not a prefix scan) ensures only the registered one is kept."""
+        import pandas as pd
+        cols = ["GITTER_ID_1km", "Insgesamt_A", "Insgesamt_B", "Cat_X"]
+        df = pd.DataFrame({c: [5] for c in cols})
+        # Only Insgesamt_A is the registered col
+        registered = "Insgesamt_A"
+        gid_col = "GITTER_ID_1km"
+        filtered = df[[gid_col, registered]]
+        assert "Insgesamt_B" not in filtered.columns
+        assert "Cat_X" not in filtered.columns
+
+
+class TestMergeIncludesTotalsOnly:
+    """Verify merge_destatis_tables includes totals-only columns when ZIPs are present."""
+
+    def test_merge_includes_insgesamt_column_from_totals_only_zip(self, tmp_path):
+        """A totals-only ZIP in raw_dir must produce an Insgesamt column in the merge."""
+        import zipfile
+        import pandas as pd
+
+        # Create a minimal Familienstand ZIP (totals-only registry)
+        csv_content = (
+            "GITTER_ID_10km;x_mp_10km;y_mp_10km;Insgesamt_Bevoelkerung;Ledig;Verheiratet\n"
+            "ID_X;1;2;300;120;180\n"
+        )
+        with zipfile.ZipFile(tmp_path / "Familienstand_in_Gitterzellen.zip", "w") as z:
+            z.writestr("Zensus2022_Familienstand_10km-Gitter.csv", csv_content)
+
+        from cleancensus.destatis_csv import merge_destatis_tables
+        df = merge_destatis_tables("10km", tmp_path)
+        assert df is not None
+
+        expected_col = "Insgesamt_Bevoelkerung_Familienstand_10km-Gitter"
+        assert expected_col in df.columns, (
+            f"Expected {expected_col!r} in columns, got {list(df.columns)}"
+        )
+        # Category columns must NOT be in output (they were filtered out)
+        assert "Ledig_Familienstand_10km-Gitter" not in df.columns
+        assert "Verheiratet_Familienstand_10km-Gitter" not in df.columns
+
+    def test_merge_totals_only_and_full_table_combined(self, tmp_path):
+        """When both a full-table ZIP and a totals-only ZIP are present, both
+        contribute columns to the merged output."""
+        import zipfile
+        import pandas as pd
+
+        # Full-table ZIP: Religion
+        csv_religion = (
+            "GITTER_ID_10km;x_mp_10km;y_mp_10km;Insgesamt_Bevoelkerung;Roemisch_katholisch;Evangelisch;Sonstige_keine_ohneAngabe\n"
+            "ID_A;1;2;100;40;30;30\n"
+        )
+        with zipfile.ZipFile(tmp_path / "Religion.zip", "w") as z:
+            z.writestr("Zensus2022_Religion_10km-Gitter.csv", csv_religion)
+
+        # Totals-only ZIP: Familienstand
+        csv_familienstand = (
+            "GITTER_ID_10km;x_mp_10km;y_mp_10km;Insgesamt_Bevoelkerung;Ledig;Verheiratet\n"
+            "ID_A;1;2;200;80;120\n"
+        )
+        with zipfile.ZipFile(tmp_path / "Familienstand_in_Gitterzellen.zip", "w") as z:
+            z.writestr("Zensus2022_Familienstand_10km-Gitter.csv", csv_familienstand)
+
+        from cleancensus.destatis_csv import merge_destatis_tables
+        df = merge_destatis_tables("10km", tmp_path)
+        assert df is not None
+
+        # Full-table columns present
+        assert "Insgesamt_Bevoelkerung_Religion_10km-Gitter" in df.columns
+        assert "Roemisch_katholisch_Religion_10km-Gitter" in df.columns
+        # Totals-only column present
+        assert "Insgesamt_Bevoelkerung_Familienstand_10km-Gitter" in df.columns
+        # Category cols from totals-only ZIP NOT present
+        assert "Ledig_Familienstand_10km-Gitter" not in df.columns

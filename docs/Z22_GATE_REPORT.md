@@ -453,3 +453,148 @@ The remaining 633 null cells all have a non-null ARS but their AGS8 (derived fro
 `ARS[0:5]+ARS[9:12]`) does not appear in the BBSR 2022 Gemeindereferenz. These are likely
 Zensus 2022 grid cells on the edges of special administrative areas (e.g. Bodensee,
 extraterritorial grid cells coded as AGS 99xxxxx) that are not Gemeinden in the BBSR reference.
+
+---
+
+## Published Totals Supplement (DESTATIS_TOTALS_ONLY) — Gate 2026-06-11
+
+**Context:** The z22data GitHub mirror provides all category columns but omits the per-topic
+`Insgesamt_*` totals (e.g. `Insgesamt_Bevoelkerung_Familienstand`). The official Destatis
+topic ZIPs contain these totals as independent published statistics (NOT derivable from the
+disclosure-perturbed category sums). The `DESTATIS_TOTALS_ONLY` registry in
+`cleancensus/destatis_csv.py` extends `merge_destatis_tables` to include 15 additional ZIPs
+copied to `data/raw/destatis/`, each contributing only its single `Insgesamt_*` column
+(category columns are dropped before merge to avoid collisions with z22data).
+
+**ZIPs copied from Downloads to `data/raw/destatis/`:** 15 (all found, 0 missing).
+`Zensus2022_Bevoelkerungszahl (2).zip` skipped — contains only `Einwohner` (not an
+Insgesamt topic total).
+
+**Source:** Official Destatis CSV ZIPs (same as DESTATIS_TABLES entries).
+**Reference:** T: merged CSVs at `T:\petre\UCFL\...\merged\merged_{10km,1km}_gitter.csv`.
+**Method:** `merge_destatis_tables` now iterates both `DESTATIS_TABLES` (7) and
+`DESTATIS_TOTALS_ONLY` (15) = 22 ZIPs total. Totals-only entries use
+`read_destatis_totals_zip`, which keeps GITTER_ID + the registered Insgesamt column only.
+
+### Column mapping (15 new Insgesamt columns)
+
+| ZIP | Insgesamt col (CSV) | Produced column (10km) |
+|-----|---------------------|------------------------|
+| `Familienstand_in_Gitterzellen.zip` | `Insgesamt_Bevoelkerung` | `Insgesamt_Bevoelkerung_Familienstand_10km-Gitter` |
+| `Zensus2022_Energietraeger.zip` | `Insgesamt_Energietraeger` | `Insgesamt_Energietraeger_Energietraeger_10km-Gitter` |
+| `Gebaeude_mit_Wohnraum_nach_ueberwiegender_Heizungsart.zip` | `Insgesamt_Heizungsart` | `Insgesamt_Heizungsart_Gebaeude_nach_ueberwiegender_Heizungsart_10km-Gitter` |
+| `Zensus2022_Groesse_des_privaten_Haushalts_in_Gitterzellen.zip` | `Insgesamt_Haushalte` | `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts_10km-Gitter` |
+| `Wohnungen_nach_Zahl_der_Raeume.zip` | `Insgesamt_Wohnungen` | `Insgesamt_Wohnungen_Wohnungen_nach_Zahl_der_Raeume_10km-Gitter` |
+| `Flaeche_der_Wohnung_10m2_Intervalle.zip` | `Insgesamt_Wohnungen` | `Insgesamt_Wohnungen_Flaeche_der_Wohnung_10m2_Intervalle_10km-Gitter` |
+| `Zensus2022_Geburtsland_Gruppen_in_Gitterzellen.zip` | `Insgesamt_Bevoelkerung` | `Insgesamt_Bevoelkerung_Geburtsland_Gruppen_10km-Gitter` |
+| `Wohnungen_nach_Gebaeudetyp_Groesse.zip` | `Insgesamt_Wohnungen` | `Insgesamt_Wohnungen_Wohnung_Gebaeudetyp_Groesse_10km-Gitter` |
+| `Gebaeude_mit_Wohnraum_nach_Gebaeudetyp_Groesse.zip` | `Insgesamt_Gebaeude` | `Insgesamt_Gebaeude_Geb_Gebaeudetyp_Groesse_10km-Gitter` |
+| `Gebaeude_nach_Anzahl_der_Wohnungen_im_Gebaeude.zip` | `Insgesamt_Gebaeude` | `Insgesamt_Gebaeude_Gebaeude_nach_Anzahl_der_Wohnungen_10km-Gitter` |
+| `Gebaeude_nach_Baujahr_in_Mikrozensus_Klassen.zip` | `Insgesamt_Gebaeude` | `Insgesamt_Gebaeude_Gebaeude_nach_Baujahr_in_MZ_Klassen_10km-Gitter` |
+| `Gebaeude_mit_Wohnraum_nach_Energietraeger_der_Heizung.zip` | `Insgesamt_Energietraeger` | `Insgesamt_Energietraeger_Gebaeude_nach_Energietraeger_der_Heizung_10km-Gitter` |
+| `Zensus2022_Heizungsart.zip` | `Insgesamt_Heizungsart` | `Insgesamt_Heizungsart_Heizungsart_10km-Gitter` |
+| `Zensus2022_Staatsangehoerigkeit_in_Gitterzellen.zip` | `Insgesamt_Bevoelkerung` | `Insgesamt_Bevoelkerung_Staatsangehoerigkeit_10km-Gitter` |
+| `Zensus2022_Staatsangehoerigkeit_Gruppen_in_Gitterzellen.zip` | `Insgesamt_Bevoelkerung` | `Insgesamt_Bevoelkerung_Staatsangehoerigkeit_Gruppen_10km-Gitter` |
+
+Note: Some produced names collide with z22data (e.g. `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts`
+comes from z22data `households_0`; `Insgesamt_Gebaeude_Gebaeude_nach_Baujahr_in_MZ_Klassen` from
+z22data `buildings_0`). The collision guard in `run_merge_z22` drops the Destatis version and keeps the
+z22data version (z22data takes precedence). Net new columns added to merged table: 13 (the 2 collisions
+keep their z22data values unmodified).
+
+### 10km gate
+
+**Inner join:** 3,824 rows (full match — supplement has 3,824 rows, T: has 3,824 rows).
+
+| Column | T: sum | Supplement sum | Status |
+|--------|--------|----------------|--------|
+| `Insgesamt_Bevoelkerung_Familienstand` | 82,711,382 | 82,711,382 | EXACT |
+| `Insgesamt_Energietraeger_Energietraeger` | 43,106,536 | 43,106,536 | EXACT |
+| `Insgesamt_Heizungsart_Gebaeude_nach_ueberwiegender_Heizungsart` | 19,957,289 | 19,957,289 | EXACT |
+| `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts` | 40,236,035 | 40,236,035 | EXACT |
+| `Insgesamt_Wohnungen_Wohnungen_nach_Zahl_der_Raeume` | 41,806,842 | 41,806,842 | EXACT |
+| `Insgesamt_Wohnungen_Flaeche_der_Wohnung_10m2_Intervalle` | 41,806,842 | 41,806,842 | EXACT |
+| `Insgesamt_Bevoelkerung_Geburtsland_Gruppen` | 82,711,382 | 82,711,382 | EXACT |
+| `Insgesamt_Wohnungen_Wohnung_Gebaeudetyp_Groesse` | 43,106,536 | 43,106,536 | EXACT |
+| `Insgesamt_Gebaeude_Geb_Gebaeudetyp_Groesse` | 19,957,289 | 19,957,289 | EXACT |
+| `Insgesamt_Gebaeude_Gebaeude_nach_Anzahl_der_Wohnungen` | 19,957,289 | 19,957,289 | EXACT |
+| `Insgesamt_Gebaeude_Gebaeude_nach_Baujahr_in_MZ_Klassen` | 19,957,289 | 19,957,289 | EXACT |
+| `Insgesamt_Energietraeger_Gebaeude_nach_Energietraeger_der_Heizung` | 19,957,289 | 19,957,289 | EXACT |
+| `Insgesamt_Heizungsart_Heizungsart` | 43,106,536 | 43,106,536 | EXACT |
+| `Insgesamt_Bevoelkerung_Staatsangehoerigkeit` | 82,711,382 | 82,711,382 | EXACT |
+| `Insgesamt_Bevoelkerung_Staatsangehoerigkeit_Gruppen` | 82,711,382 | 82,711,382 | EXACT |
+
+**All 15 new columns gate EXACT at 10km** (national sum diff = 0, n_diff = 0 per cell on inner join).
+
+### 1km gate
+
+**Inner join:** 212,600 rows (supplement has 212,600 rows; T: has 212,758; 158 cells below
+Destatis disclosure threshold, consistent with prior pattern).
+
+All 15 new columns gate **EXACT** at 1km (national sum diff = 0, n_diff = 0 per cell).
+
+Selected national sums (1km):
+
+| Column | T: sum | Supplement sum | Status |
+|--------|--------|----------------|--------|
+| `Insgesamt_Bevoelkerung_Familienstand` | 82,706,456 | 82,706,456 | EXACT |
+| `Insgesamt_Energietraeger_Energietraeger` | 43,090,188 | 43,090,188 | EXACT |
+| `Insgesamt_Heizungsart_Gebaeude_nach_ueberwiegender_Heizungsart` | 19,936,682 | 19,936,682 | EXACT |
+| `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts` | 40,221,501 | 40,221,501 | EXACT |
+| `Insgesamt_Bevoelkerung_Geburtsland_Gruppen` | 82,706,456 | 82,706,456 | EXACT |
+| `Insgesamt_Gebaeude_Geb_Gebaeudetyp_Groesse` | 19,936,682 | 19,936,682 | EXACT |
+
+### POP_TOTAL candidate pool analysis
+
+`ingest_totals.collapse_population_totals` scans columns matching
+`^(Einwohner_Bevoelkerungszahl|Insgesamt_Bevoelkerung_)`. Of the 15 new supplement columns,
+**4 match this pattern** and join the consensus pool:
+
+| New pool candidate | Value (10km national) |
+|--------------------|-----------------------|
+| `Insgesamt_Bevoelkerung_Familienstand_*` | 82,711,382 |
+| `Insgesamt_Bevoelkerung_Geburtsland_Gruppen_*` | 82,711,382 |
+| `Insgesamt_Bevoelkerung_Staatsangehoerigkeit_*` | 82,711,382 |
+| `Insgesamt_Bevoelkerung_Staatsangehoerigkeit_Gruppen_*` | 82,711,382 |
+
+These values are identical to the existing pool members (`Insgesamt_Bevoelkerung_Alter_*`,
+`Insgesamt_Bevoelkerung_Religion_*`, etc.) = 82,711,382 nationally. Adding them increases
+the consensus support count per row but does NOT change POP_TOTAL (all agree). The T: notebook
+always had these columns in its merged CSV, so this change makes the pipeline **more faithful**
+to the notebook baseline, not different from it.
+
+### Stale work files deleted (cache invalidation)
+
+Because the merged parquets now contain 13 additional Insgesamt columns (vs. the previous run),
+all downstream work artifacts were deleted to force a clean re-run:
+
+| Deleted file | Reason |
+|--------------|--------|
+| `data/work/merged_{10km,1km,100m}_gitter.parquet` | Now stale — new supplement columns not present |
+| `data/work/totals_{10km,1km,100m}.parquet` | Depend on merged; 4 new POP_TOTAL candidates change support count |
+| `data/work/df{10,1,100}_with_single_years.parquet` | Depend on totals |
+| `data/work/cells_100m_with_gemeinde.parquet` | Downstream of merged |
+| `data/work/cells_100m_with_gender_backfilled.parquet` | Downstream of gemeinde |
+
+A full re-run (merge + totals + ages + gemeinde + gender) is required (~1.3 h). The totals/ages
+gates are expected to be unchanged (the notebook always had these columns, so POP_TOTAL values
+are the same; only the support count increases, strengthening the consensus).
+
+### Step 5 completeness check
+
+All 12 required Insgesamt columns confirmed PRESENT in the supplement output at 10km:
+
+| Required column | Source ZIP | Status |
+|-----------------|------------|--------|
+| `Insgesamt_Bevoelkerung_Familienstand` | `Familienstand_in_Gitterzellen.zip` | PRESENT |
+| `Insgesamt_Energietraeger_Energietraeger` | `Zensus2022_Energietraeger.zip` | PRESENT |
+| `Insgesamt_Heizungsart_Gebaeude_nach_ueberwiegender_Heizungsart` | `Gebaeude_mit_Wohnraum_nach_ueberwiegender_Heizungsart.zip` | PRESENT |
+| `Insgesamt_Haushalte_Groesse_des_privaten_Haushalts` | `Zensus2022_Groesse_des_privaten_Haushalts_in_Gitterzellen.zip` (collision: z22data wins) | PRESENT |
+| `Insgesamt_Haushalte_Typ_priv_HH_Lebensform` | `Typ_des_privaren_Haushalts_Lebensform.zip` (DESTATIS_TABLES) | PRESENT |
+| `Insgesamt_Wohnungen_Wohnungen_nach_Zahl_der_Raeume` | `Wohnungen_nach_Zahl_der_Raeume.zip` | PRESENT |
+| `Insgesamt_Wohnungen_Flaeche_der_Wohnung_10m2_Intervalle` | `Flaeche_der_Wohnung_10m2_Intervalle.zip` | PRESENT |
+| `Insgesamt_Bevoelkerung_Geburtsland_Gruppen` | `Zensus2022_Geburtsland_Gruppen_in_Gitterzellen.zip` | PRESENT |
+| `Insgesamt_Wohnungen_Wohnung_Gebaeudetyp_Groesse` | `Wohnungen_nach_Gebaeudetyp_Groesse.zip` | PRESENT |
+| `Insgesamt_Gebaeude_Geb_Gebaeudetyp_Groesse` | `Gebaeude_mit_Wohnraum_nach_Gebaeudetyp_Groesse.zip` | PRESENT |
+| `Insgesamt_Gebaeude_Gebaeude_nach_Anzahl_der_Wohnungen` | `Gebaeude_nach_Anzahl_der_Wohnungen_im_Gebaeude.zip` | PRESENT |
+| `Insgesamt_Haushalte_Seniorenstatus_eines_privaten_Haushalts` | `Seniorenstatus_eines_privaten_Haushalts.zip` (DESTATIS_TABLES) | PRESENT |
