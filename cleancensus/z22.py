@@ -486,6 +486,9 @@ def build_merged_table(level: str, src_dir: str | Path) -> "pd.DataFrame":
 def run_merge_z22(cfg) -> None:
     """Merge stage: download z22data parquets and build per-level wide tables.
 
+    Additionally ingests the 6 Destatis-CSV ZIP supplements (if present in
+    cfg.destatis_raw_dir) and left-joins them onto the z22 table.
+
     Writes ``work_dir/merged_{level}_gitter.parquet`` for each level.
     Downloads go to ``inputs_dir.parent / "raw" / "z22" / {level}`` (gitignored).
 
@@ -496,6 +499,8 @@ def run_merge_z22(cfg) -> None:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
+    from cleancensus.destatis_csv import merge_destatis_tables
+
     features = list(FEATURE_MAP.keys())
 
     levels = ["10km", "1km", "100m"]
@@ -504,8 +509,29 @@ def run_merge_z22(cfg) -> None:
         print(f"[merge/z22] level={level}: downloading to {raw_dir} ...")
         download_z22(level, features, raw_dir)
 
-        print(f"[merge/z22] level={level}: building merged table ...")
+        print(f"[merge/z22] level={level}: building z22 merged table ...")
         df = build_merged_table(level, raw_dir)
+
+        # ---- Destatis-CSV supplement ----------------------------------------
+        destatis_dir = cfg.destatis_raw_dir
+        if destatis_dir.exists():
+            print(f"[merge/z22] level={level}: ingesting Destatis-CSV supplement from {destatis_dir} ...")
+            destatis_df = merge_destatis_tables(level, destatis_dir)
+            if destatis_df is not None:
+                gid_col = f"GITTER_ID_{level}"
+                before = df.shape[1]
+                df = df.merge(destatis_df, on=gid_col, how="left")
+                added = df.shape[1] - before
+                print(f"[merge/z22] level={level}: added {added} Destatis-CSV columns")
+            else:
+                print(f"[merge/z22] level={level}: no Destatis ZIPs found in {destatis_dir}, skipping supplement")
+        else:
+            print(
+                f"[merge/z22] level={level}: {destatis_dir} not found — "
+                "Destatis supplement skipped (z22-only mode). "
+                "Copy the 6 ZIPs there to include the 6 missing topics."
+            )
+        # ----------------------------------------------------------------------
 
         out_path = cfg.work_dir / f"merged_{level}_gitter.parquet"
         out_path.parent.mkdir(parents=True, exist_ok=True)
