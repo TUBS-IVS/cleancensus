@@ -416,17 +416,17 @@ class TestRegistryImplemented:
         by_name = {s.name: s for s in REGISTRY}
         assert by_name["ages"].implemented is True
 
-    def test_gemeinde_not_implemented(self):
+    def test_gemeinde_implemented(self):
         from cleancensus.pipeline import REGISTRY
 
         by_name = {s.name: s for s in REGISTRY}
-        assert by_name["gemeinde"].implemented is False
+        assert by_name["gemeinde"].implemented is True
 
-    def test_gender_not_implemented(self):
+    def test_gender_implemented(self):
         from cleancensus.pipeline import REGISTRY
 
         by_name = {s.name: s for s in REGISTRY}
-        assert by_name["gender"].implemented is False
+        assert by_name["gender"].implemented is True
 
 
 class TestPlanWithTotalsAges:

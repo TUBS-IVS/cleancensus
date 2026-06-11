@@ -12,15 +12,15 @@ notebooks is not finished yet are marked ``implemented=False`` and raise a clear
 only if a config actually enables them — so the framework is complete and honest while
 the heavy raw->prepared stages are still being ported.
 
-Implemented raw->prepared stages (R3, R4, R6):
+Implemented raw->prepared stages (R3, R4, R5, R6):
   - merge     : ingest from z22data GitHub mirror (JsLth), build merged per-level tables (R3)
   - totals    : collapse population total columns + proportional cross-level adjustment (R3)
   - ages      : single-year age decomposition AGE_0..AGE_100 via trust-mixed IPF (R4)
+  - gemeinde  : spatial join of BKG VG250 Gemeinde polygons -> ARS/Land/Kreis/... (R5)
+  - gender    : male/female split via GENESIS 1000A-2027 Gemeinde shares + orphan backfill (R5)
   - topics8   : port of notebooks_archive/other_binned_data.ipynb
   - aggs      : decade-binned gendered age aggregates + totals (reconstructed, R6)
   - regiostar : BBSR RegioStaR 2022 municipality classification join (reconstructed, R6)
-
-Not yet implemented: gemeinde, gender (R5).
 
 tenure and sanity are not "producer" stages: tenure is gated by
 ``[harmonize].derived_tenure`` and sanity by ``[run].sanity`` (skip = off).
@@ -91,9 +91,9 @@ REGISTRY: tuple[Stage, ...] = (
     Stage("ages", "single-year age columns AGE_0..AGE_100 via trust-mixed IPF",
           _producer_enabled("ages"), None),  # run set below
     Stage("gemeinde", "join Gemeinde/Kreis/ARS attributes onto 100m cells",
-          _producer_enabled("gemeinde"), _not_implemented("gemeinde", "R5"), implemented=False),
+          _producer_enabled("gemeinde"), None),  # run set below
     Stage("gender", "male/female age split at 100m + orphan backfill",
-          _producer_enabled("gender"), _not_implemented("gender", "R5"), implemented=False),
+          _producer_enabled("gender"), None),  # run set below
     Stage("topics8", "harmonize the 8 original categorical topics + orphan pass",
           _producer_enabled("topics8"), None),  # run set below
     Stage("aggs", "M_AGE/F_AGE binned aggregate columns",
@@ -138,6 +138,26 @@ def _run_merge(cfg: Config):
 def _merge_complete(cfg: Config) -> bool:
     from cleancensus.z22 import merge_complete
     return merge_complete(cfg)
+
+
+def _run_gemeinde(cfg: Config):
+    from cleancensus.gemeinde_stage import run_gemeinde
+    run_gemeinde(cfg)
+
+
+def _gemeinde_complete(cfg: Config) -> bool:
+    from cleancensus.gemeinde_stage import gemeinde_complete
+    return gemeinde_complete(cfg)
+
+
+def _run_gender(cfg: Config):
+    from cleancensus.gender_stage import run_gender
+    run_gender(cfg)
+
+
+def _gender_complete(cfg: Config) -> bool:
+    from cleancensus.gender_stage import gender_complete
+    return gender_complete(cfg)
 
 
 def _run_topics8(cfg: Config):
@@ -191,6 +211,8 @@ _RUN = {
     "merge": _run_merge,
     "totals": _run_totals,
     "ages": _run_ages,
+    "gemeinde": _run_gemeinde,
+    "gender": _run_gender,
     "topics8": _run_topics8,
     "aggs": _run_aggs,
     "regiostar": _run_regiostar,
@@ -202,6 +224,8 @@ _IS_COMPLETE = {
     "merge": _merge_complete,
     "totals": _totals_complete,
     "ages": _ages_complete,
+    "gemeinde": _gemeinde_complete,
+    "gender": _gender_complete,
     "topics8": _topics8_complete,
     "aggs": _aggs_complete,
     "regiostar": _regiostar_complete,

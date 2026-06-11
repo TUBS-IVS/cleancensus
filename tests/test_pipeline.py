@@ -17,15 +17,15 @@ def test_registry_order_and_completeness():
         "merge", "totals", "ages", "gemeinde", "gender", "topics8",
         "aggs", "regiostar", "extend", "tenure", "sanity",
     )
-    # implemented stages (R3: merge+totals; R4: ages; R6: aggs + regiostar + topics8 + extend)
+    # implemented stages (R3: merge+totals; R4: ages; R5: gemeinde+gender; R6: aggs+regiostar+topics8+extend)
     impl = {s.name: s.implemented for s in REGISTRY}
-    assert impl["merge"]  # R3: z22data ingest path
-    assert impl["totals"]  # R3: population totals collapse + adjust
-    assert impl["ages"]    # R4: single-year age decomposition
+    assert impl["merge"]    # R3: z22data ingest path
+    assert impl["totals"]   # R3: population totals collapse + adjust
+    assert impl["ages"]     # R4: single-year age decomposition
+    assert impl["gemeinde"] # R5: Gemeinde/ARS join
+    assert impl["gender"]   # R5: male/female split + orphan backfill
     assert impl["extend"] and impl["tenure"] and impl["sanity"]
     assert impl["topics8"] and impl["aggs"] and impl["regiostar"]
-    # not yet implemented (R5 remaining)
-    assert not any(impl[n] for n in ("gemeinde", "gender"))
 
 
 def test_default_plan_only_extend_runs(tmp_path):
@@ -42,13 +42,15 @@ def test_default_plan_only_extend_runs(tmp_path):
     assert actions["merge"] == "skip-disabled"
 
 
-def test_enabled_unimplemented_stage_is_planned(tmp_path):
+def test_enabled_implemented_stage_is_run_or_cached(tmp_path):
+    """gemeinde and gender are now implemented, so their plan action is 'run' (not 'planned')."""
     cfg = _cfg(tmp_path, """
         [stages]
         gender = true
     """)
     actions = {s["name"]: s["action"] for s in plan(cfg)}
-    assert actions["gender"] == "planned"
+    # 'run' because output does not exist yet; 'skip-cached' would mean it does
+    assert actions["gender"] in ("run", "skip-cached")
 
 
 def test_from_window_skips_earlier_even_if_enabled(tmp_path):
@@ -58,18 +60,9 @@ def test_from_window_skips_earlier_even_if_enabled(tmp_path):
         gender = true
     """)
     actions = {s["name"]: s["action"] for s in plan(cfg, from_stage="gender")}
-    assert actions["gemeinde"] == "skip-cached"  # before the window, not "planned"
-    assert actions["gender"] == "planned"         # in window, still unimplemented
-
-
-def test_run_pipeline_raises_on_enabled_unimplemented(tmp_path):
-    cfg = _cfg(tmp_path, """
-        [stages]
-        gender = true
-        extend = false
-    """)
-    with pytest.raises(NotImplementedError, match="gender"):
-        run_pipeline(cfg)
+    assert actions["gemeinde"] == "skip-cached"  # before the window: treated as done
+    # gender is implemented; action depends on whether output exists (not 'planned')
+    assert actions["gender"] in ("run", "skip-cached")
 
 
 def test_unknown_stage_in_config_rejected(tmp_path):
