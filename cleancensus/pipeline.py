@@ -12,13 +12,15 @@ notebooks is not finished yet are marked ``implemented=False`` and raise a clear
 only if a config actually enables them — so the framework is complete and honest while
 the heavy raw->prepared stages are still being ported.
 
-Implemented raw->prepared stages (R3, R6):
+Implemented raw->prepared stages (R3, R4, R6):
   - merge     : ingest from z22data GitHub mirror (JsLth), build merged per-level tables (R3)
+  - totals    : collapse population total columns + proportional cross-level adjustment (R3)
+  - ages      : single-year age decomposition AGE_0..AGE_100 via trust-mixed IPF (R4)
   - topics8   : port of notebooks_archive/other_binned_data.ipynb
   - aggs      : decade-binned gendered age aggregates + totals (reconstructed, R6)
   - regiostar : BBSR RegioStaR 2022 municipality classification join (reconstructed, R6)
 
-Not yet implemented: totals, ages, gemeinde, gender (R3-R5).
+Not yet implemented: gemeinde, gender (R5).
 
 tenure and sanity are not "producer" stages: tenure is gated by
 ``[harmonize].derived_tenure`` and sanity by ``[run].sanity`` (skip = off).
@@ -84,10 +86,10 @@ def _producer_enabled(name: str):
 REGISTRY: tuple[Stage, ...] = (
     Stage("merge", "z22data parquets -> merged per-level tables (10km/1km/100m)",
           _producer_enabled("merge"), None),  # run set below
-    Stage("totals", "reconcile population totals across levels (cross-level IPF)",
-          _producer_enabled("totals"), _not_implemented("totals", "R3"), implemented=False),
-    Stage("ages", "single-year age columns AGE_0..AGE_100",
-          _producer_enabled("ages"), _not_implemented("ages", "R4"), implemented=False),
+    Stage("totals", "collapse pop totals + proportional adjustment across levels",
+          _producer_enabled("totals"), None),  # run set below
+    Stage("ages", "single-year age columns AGE_0..AGE_100 via trust-mixed IPF",
+          _producer_enabled("ages"), None),  # run set below
     Stage("gemeinde", "join Gemeinde/Kreis/ARS attributes onto 100m cells",
           _producer_enabled("gemeinde"), _not_implemented("gemeinde", "R5"), implemented=False),
     Stage("gender", "male/female age split at 100m + orphan backfill",
@@ -106,6 +108,26 @@ REGISTRY: tuple[Stage, ...] = (
           lambda cfg: cfg.sanity != "skip", None,
           lambda cfg: False),  # run set below; never cached
 )
+
+
+def _run_totals(cfg: Config):
+    from cleancensus.ingest_totals import run_totals
+    run_totals(cfg)
+
+
+def _totals_complete(cfg: Config) -> bool:
+    from cleancensus.ingest_totals import totals_complete
+    return totals_complete(cfg)
+
+
+def _run_ages(cfg: Config):
+    from cleancensus.ages_stage import run_ages
+    run_ages(cfg)
+
+
+def _ages_complete(cfg: Config) -> bool:
+    from cleancensus.ages_stage import ages_complete
+    return ages_complete(cfg)
 
 
 def _run_merge(cfg: Config):
@@ -167,6 +189,8 @@ def _run_sanity(cfg: Config) -> int:
 # wire the implemented run callables (kept out of the literal to avoid import cost on import)
 _RUN = {
     "merge": _run_merge,
+    "totals": _run_totals,
+    "ages": _run_ages,
     "topics8": _run_topics8,
     "aggs": _run_aggs,
     "regiostar": _run_regiostar,
@@ -176,6 +200,8 @@ _RUN = {
 }
 _IS_COMPLETE = {
     "merge": _merge_complete,
+    "totals": _totals_complete,
+    "ages": _ages_complete,
     "topics8": _topics8_complete,
     "aggs": _aggs_complete,
     "regiostar": _regiostar_complete,
