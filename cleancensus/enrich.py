@@ -81,22 +81,41 @@ REGIOSTAR_COLS = [
     "RegioStaRGem5",
 ]
 
-# Default path for the RegioStaR reference file (BBSR Referenzdatei 2020).
-# Override via config key ``regiostar_ref`` (not yet wired into the TOML
-# schema but respected if present on cfg as an attribute or in cfg.stages).
+# Primary: BBSR Referenz Gemeinden Gebietsstand 31.12.2022 (downloaded to data/raw/regiostar/).
+# This is the correct Gebietsstand for Zensus 2022 ARS.
 _DEFAULT_REGIOSTAR_REF = (
     Path(__file__).parent.parent  # repo root
+    / "data" / "raw" / "regiostar" / "bbsr-referenz-gebietsstand-2022.xlsx"
+)
+# Fallback A: old BMDV Gebietsstand2020 file in data/inputs/ (legacy location):
+_FALLBACK_REGIOSTAR_REF_A = (
+    Path(__file__).parent.parent
     / "data" / "inputs" / "regiostar_referenzdatei.xlsx"
 )
-# Fallback to the eqasim-bs copy that is known to exist on this machine:
-_FALLBACK_REGIOSTAR_REF = (
+# Fallback B: the eqasim-bs copy (Gebietsstand 2020, known to exist on this machine):
+_FALLBACK_REGIOSTAR_REF_B = (
     Path.home()
     / "Documents" / "GitHub" / "eqasim-bs"
     / "eqasim-data" / "data" / "regiostar"
     / "regiostar_referenzdatei.xlsx"
 )
 
+# Sheet name for the BBSR 2022 Gemeindereferenz:
+REGIOSTAR_SHEET_BBSR2022 = "Gemeindereferenz (inkl. Kreise)"
+# Sheet name for the legacy BMDV Gebietsstand2020 file:
 REGIOSTAR_SHEET = "ReferenzGebietsstand2020"
+
+# Column mapping: BBSR 2022 Gemeindereferenz -> our canonical RegioStaR output columns.
+# RegioStaR4 is derived from RSS2022 (RegioStaR17) via integer floor-division by 10.
+# RegioStaR5 and RegioStaRGem7 are NOT present in the BBSR 2022 Gemeindereferenz sheet
+# (they appear in the BMDV 2020 file only); cells will receive NaN for these two columns
+# when loading the BBSR 2022 reference.
+_BBSR2022_COL_MAP: dict[str, str] = {
+    "RS22022": "RegioStaR2",
+    "RSS2022": "RegioStaR17",   # RegioStaR4 = RSS2022 // 10, derived below
+    "RS72022": "RegioStaR7",
+    "RS52022": "RegioStaRGem5",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -240,11 +259,12 @@ def _find_regiostar_ref(cfg: Config) -> Path:
     """Locate the RegioStaR reference XLSX.
 
     Priority:
-    1. ``regiostar_ref`` attribute on cfg (if someone adds it later).
-    2. Default path in the repo's data/inputs directory.
-    3. Fallback to the known eqasim-bs copy.
+    1. ``regiostar_ref`` on cfg (set via TOML key [data].regiostar_ref).
+    2. BBSR Referenz Gemeinden Gebietsstand 31.12.2022 in data/raw/regiostar/.
+    3. Legacy BMDV Gebietsstand2020 file in data/inputs/ (warn if used).
+    4. Legacy BMDV Gebietsstand2020 file in eqasim-bs copy (warn if used).
     """
-    # Allow future config extension
+    # Explicit TOML override
     ref_attr = getattr(cfg, "regiostar_ref", None)
     if ref_attr is not None:
         p = Path(ref_attr)
@@ -254,49 +274,139 @@ def _find_regiostar_ref(cfg: Config) -> Path:
             f"[regiostar] regiostar_ref path does not exist: {p}"
         )
 
+    # Primary: BBSR 2022
     if _DEFAULT_REGIOSTAR_REF.exists():
         return _DEFAULT_REGIOSTAR_REF
 
-    if _FALLBACK_REGIOSTAR_REF.exists():
-        log.info(
-            "[regiostar] using fallback RegioStaR reference: %s",
-            _FALLBACK_REGIOSTAR_REF,
+    # Fallback A: BMDV 2020 in data/inputs/
+    if _FALLBACK_REGIOSTAR_REF_A.exists():
+        log.warning(
+            "[regiostar] BBSR 2022 ref not found at %s; falling back to "
+            "Gebietsstand2020 reference at %s. "
+            "Download bbsr-referenz-gebietsstand-2022.xlsx to data/raw/regiostar/ "
+            "for the correct Zensus 2022 ARS alignment.",
+            _DEFAULT_REGIOSTAR_REF,
+            _FALLBACK_REGIOSTAR_REF_A,
         )
-        return _FALLBACK_REGIOSTAR_REF
+        return _FALLBACK_REGIOSTAR_REF_A
+
+    # Fallback B: eqasim-bs copy
+    if _FALLBACK_REGIOSTAR_REF_B.exists():
+        log.warning(
+            "[regiostar] BBSR 2022 ref not found; falling back to eqasim-bs "
+            "Gebietsstand2020 reference at %s.",
+            _FALLBACK_REGIOSTAR_REF_B,
+        )
+        return _FALLBACK_REGIOSTAR_REF_B
 
     raise FileNotFoundError(
         f"[regiostar] RegioStaR reference file not found.\n"
-        f"  Tried: {_DEFAULT_REGIOSTAR_REF}\n"
-        f"         {_FALLBACK_REGIOSTAR_REF}\n"
-        f"  Place regiostar_referenzdatei.xlsx (BBSR ReferenzGebietsstand2020) in\n"
-        f"  data/inputs/ or set cfg.regiostar_ref to its path."
+        f"  Primary  : {_DEFAULT_REGIOSTAR_REF}\n"
+        f"  Fallback A: {_FALLBACK_REGIOSTAR_REF_A}\n"
+        f"  Fallback B: {_FALLBACK_REGIOSTAR_REF_B}\n"
+        f"  Download BBSR Referenz Gemeinden Gebietsstand 31.12.2022 from\n"
+        f"  https://www.bbsr.bund.de/ and place it at data/raw/regiostar/"
+        f"bbsr-referenz-gebietsstand-2022.xlsx,\n"
+        f"  or set [data].regiostar_ref in your config.toml."
     )
 
 
-def _load_regiostar_ref(ref_path: Path) -> pd.DataFrame:
+def _is_bbsr2022_format(raw: pd.DataFrame) -> bool:
+    """Return True if ``raw`` looks like the BBSR 2022 Gemeindereferenz sheet."""
+    return "GEM2022" in raw.columns and "RS22022" in raw.columns
+
+
+def _normalize_bbsr2022(raw: pd.DataFrame) -> pd.DataFrame:
+    """Map BBSR 2022 Gemeindereferenz columns to our canonical REGIOSTAR_COLS.
+
+    Column mapping (BBSR 2022 -> canonical):
+      GEM2022   -> commune_id (8-digit AGS, zero-padded)
+      RS22022   -> RegioStaR2
+      RSS2022   -> RegioStaR17
+      RSS2022//10 -> RegioStaR4  (derived; 100% match verified against BMDV2020)
+      RS72022   -> RegioStaR7
+      RS52022   -> RegioStaRGem5
+
+    NOT available in BBSR 2022 Gemeindereferenz (set to NaN):
+      RegioStaR5  (Stadtregion 5-type, only in BMDV2020 file)
+      RegioStaRGem7 (Gemeinde 7-type, only in BMDV2020 file)
+    """
+    # Skip the description row (row 0 has long German descriptions as values)
+    if raw.iloc[0].astype(str).str.contains("Kennziffer|Regionalschl").any():
+        raw = raw.iloc[1:].reset_index(drop=True)
+
+    ref = pd.DataFrame()
+    ref["commune_id"] = raw["GEM2022"].astype("Int64").astype(str).str.zfill(8)
+    ref["RegioStaR2"]  = pd.to_numeric(raw["RS22022"], errors="coerce")
+    ref["RegioStaR17"] = pd.to_numeric(raw["RSS2022"], errors="coerce")
+    ref["RegioStaR4"]  = (ref["RegioStaR17"] // 10).astype("float64")
+    ref["RegioStaR7"]  = pd.to_numeric(raw["RS72022"], errors="coerce")
+    ref["RegioStaRGem5"] = pd.to_numeric(raw["RS52022"], errors="coerce")
+    # Not available in BBSR 2022 Gemeindereferenz:
+    ref["RegioStaR5"]   = np.nan
+    ref["RegioStaRGem7"] = np.nan
+    return ref
+
+
+def _normalize_bmdv2020(raw: pd.DataFrame) -> pd.DataFrame:
+    """Map the legacy BMDV Gebietsstand2020 columns to our canonical REGIOSTAR_COLS."""
+    # Skip the description row if present
+    if "gem_20" not in raw.columns and raw.iloc[0].astype(str).str.contains("Gemeinde").any():
+        raw = raw.iloc[1:].reset_index(drop=True)
+
+    ref = pd.DataFrame()
+    ref["commune_id"] = raw["gem_20"].astype("Int64").astype(str).str.zfill(8)
+    for col in REGIOSTAR_COLS:
+        ref[col] = pd.to_numeric(raw[col], errors="coerce")
+    return ref
+
+
+def _load_regiostar_ref(ref_path: Path, sheet: str = "") -> pd.DataFrame:
     """Load the RegioStaR reference table keyed on 8-digit AGS (commune_id).
 
-    Returns a DataFrame with columns [commune_id, RegioStaR2, RegioStaR4,
-    RegioStaR17, RegioStaR7, RegioStaR5, RegioStaRGem7, RegioStaRGem5].
+    Returns a DataFrame with columns [commune_id] + REGIOSTAR_COLS.
 
-    The source sheet is ReferenzGebietsstand2020 (Gebietsstand 2020 matches the
-    ARS structure used in Zensus 2022 cells).
+    Supports two formats:
+    - BBSR Gemeindereferenz 31.12.2022 (sheet 'Gemeindereferenz (inkl. Kreise)'):
+        RS22022, RSS2022, RS72022, RS52022 columns;
+        RegioStaR4 derived from RegioStaR17; RegioStaR5 and RegioStaRGem7 = NaN.
+    - Legacy BMDV Gebietsstand2020 (sheet 'ReferenzGebietsstand2020'):
+        gem_20 + direct RegioStaR* columns.
+
+    The sheet is auto-detected if ``sheet`` is empty.
     """
-    print(f"[regiostar] loading reference from {ref_path} (sheet={REGIOSTAR_SHEET!r}) ...")
-    raw = pd.read_excel(ref_path, sheet_name=REGIOSTAR_SHEET, engine="openpyxl")
+    # Auto-detect sheet if not specified
+    if not sheet:
+        xl = pd.ExcelFile(ref_path, engine="openpyxl")
+        sheets = xl.sheet_names
+        xl.close()
+        if REGIOSTAR_SHEET_BBSR2022 in sheets:
+            sheet = REGIOSTAR_SHEET_BBSR2022
+        elif REGIOSTAR_SHEET in sheets:
+            sheet = REGIOSTAR_SHEET
+        else:
+            raise ValueError(
+                f"[regiostar] Could not find a known RegioStaR sheet in {ref_path}. "
+                f"Sheets found: {sheets}. "
+                f"Expected one of {REGIOSTAR_SHEET_BBSR2022!r} or {REGIOSTAR_SHEET!r}."
+            )
 
-    # commune_id: gem_20 zero-padded to 8 digits
-    raw["commune_id"] = raw["gem_20"].astype("Int64").astype(str).str.zfill(8)
+    print(
+        f"[regiostar] loading reference from {ref_path.name} (sheet={sheet!r}) ..."
+    )
+    raw = pd.read_excel(ref_path, sheet_name=sheet, engine="openpyxl")
 
-    keep = ["commune_id"] + REGIOSTAR_COLS
-    ref = raw[keep].copy()
+    if _is_bbsr2022_format(raw):
+        ref = _normalize_bbsr2022(raw)
+        n_rs5_nan = ref["RegioStaR5"].isna().sum()
+        print(
+            f"[regiostar] BBSR 2022 format detected: {len(ref):,} Gemeinden "
+            f"(RegioStaR5 and RegioStaRGem7 not available in this sheet -> NaN)"
+        )
+    else:
+        ref = _normalize_bmdv2020(raw)
+        print(f"[regiostar] BMDV 2020 format: {len(ref):,} Gemeinden")
 
-    # Cast RegioStaR columns to float64 (they're integers in the ref but stored
-    # as float in the target parquet to accommodate NaN for unmatched cells)
-    for col in REGIOSTAR_COLS:
-        ref[col] = pd.to_numeric(ref[col], errors="coerce")
-
-    print(f"[regiostar] reference loaded: {len(ref):,} Gemeinden")
     return ref
 
 
@@ -315,7 +425,8 @@ def run_regiostar(cfg: Config) -> None:
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
 
     ref_path = _find_regiostar_ref(cfg)
-    ref = _load_regiostar_ref(ref_path)
+    sheet = getattr(cfg, "regiostar_sheet", "") or ""
+    ref = _load_regiostar_ref(ref_path, sheet=sheet)
 
     # Build AGS8 -> RegioStaR* lookup dict (fast Series.map)
     lookup: dict[str, dict[str, float]] = {

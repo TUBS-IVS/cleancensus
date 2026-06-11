@@ -25,6 +25,11 @@ class Config:
     # tenure is controlled by [harmonize].derived_tenure, sanity by [run].sanity.
     stages: dict             # {stage_name: bool} over PRODUCER_STAGES
     config_path: Path = field(compare=False)
+    # [data] RegioStaR reference — override the BBSR Gebietsstand 31.12.2022 default.
+    # Default is the BBSR Referenz Gemeinden Gebietsstand 31.12.2022 workbook in
+    # data/raw/regiostar/. Fall back to the BMDV Gebietsstand2020 file if absent.
+    regiostar_ref: Path | None = field(default=None, compare=False)
+    regiostar_sheet: str = field(default="", compare=False)
 
     # canonical input file names (fixed contract)
     @property
@@ -143,6 +148,13 @@ def load_config(path: str | Path) -> Config:
     inputs_dir = (repo_root / data.get("inputs_dir", "data/inputs")).resolve()
     outputs_dir = (repo_root / data.get("outputs_dir", "data/outputs")).resolve()
 
+    # RegioStaR reference: explicit TOML override, otherwise None (enrich.py auto-discovers)
+    regiostar_ref_raw = data.get("regiostar_ref", None)
+    regiostar_ref: Path | None = (
+        (repo_root / regiostar_ref_raw).resolve() if regiostar_ref_raw is not None else None
+    )
+    regiostar_sheet: str = str(data.get("regiostar_sheet", ""))
+
     return Config(
         inputs_dir=inputs_dir,
         outputs_dir=outputs_dir,
@@ -155,4 +167,6 @@ def load_config(path: str | Path) -> Config:
         write_manifest=bool(run.get("write_manifest", True)),
         stages=_resolve_stages(raw.get("stages", {})),
         config_path=path,
+        regiostar_ref=regiostar_ref,
+        regiostar_sheet=regiostar_sheet,
     )

@@ -76,3 +76,40 @@ def test_bad_sanity_mode(tmp_path):
             [run]
             sanity = "maybe"
         """))
+
+
+# ---------------------------------------------------------------------------
+# RegioStaR config wiring tests
+# ---------------------------------------------------------------------------
+
+def test_regiostar_ref_defaults_to_none(tmp_path):
+    """regiostar_ref defaults to None (enrich.py auto-discovers the BBSR 2022 file)."""
+    cfg = load_config(_write(tmp_path, ""))
+    assert cfg.regiostar_ref is None
+
+
+def test_regiostar_sheet_defaults_to_empty(tmp_path):
+    """regiostar_sheet defaults to empty string (triggers auto-detect in enrich.py)."""
+    cfg = load_config(_write(tmp_path, ""))
+    assert cfg.regiostar_sheet == ""
+
+
+def test_regiostar_ref_toml_override(tmp_path):
+    """[data].regiostar_ref in TOML is resolved relative to the config file."""
+    cfg = load_config(_write(tmp_path, """
+        [data]
+        regiostar_ref = "data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx"
+    """))
+    assert cfg.regiostar_ref is not None
+    # Should be an absolute path resolved from tmp_path
+    assert cfg.regiostar_ref.is_absolute()
+    assert cfg.regiostar_ref.name == "bbsr-referenz-gebietsstand-2022.xlsx"
+
+
+def test_regiostar_sheet_toml_override(tmp_path):
+    """[data].regiostar_sheet in TOML is passed through as-is."""
+    cfg = load_config(_write(tmp_path, """
+        [data]
+        regiostar_sheet = "Gemeindereferenz (inkl. Kreise)"
+    """))
+    assert cfg.regiostar_sheet == "Gemeindereferenz (inkl. Kreise)"

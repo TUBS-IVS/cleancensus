@@ -140,3 +140,128 @@ def test_regiostar_ars_to_ags8():
 
     # Another known example: ARS 010010000000 -> 01001000
     assert _ars_to_ags8("010010000000") == "01001000"
+
+
+# ---------------------------------------------------------------------------
+# Column normalization unit tests (BBSR 2022 vs legacy BMDV 2020 formats)
+# ---------------------------------------------------------------------------
+
+class TestRegioStarColumnNormalization:
+    """Unit tests for _is_bbsr2022_format, _normalize_bbsr2022, _normalize_bmdv2020."""
+
+    def _make_bbsr2022_frame(self) -> pd.DataFrame:
+        """Minimal synthetic BBSR 2022 Gemeindereferenz sheet (post-skiprows)."""
+        return pd.DataFrame({
+            "GEM2022":  [1001000, 1002000, 1003000],
+            "GEM2022_RS": [10010000000, 10020000000, 10030000000],
+            "GEM_NAME": ["Stadt A", "Stadt B", "Gemeinde C"],
+            "RS22022":  [1, 1, 2],
+            "RSS2022":  [111, 113, 221],
+            "RS72022":  [71, 72, 75],
+            "RS52022":  [51, 52, 53],
+        })
+
+    def _make_bmdv2020_frame(self) -> pd.DataFrame:
+        """Minimal synthetic BMDV 2020 ReferenzGebietsstand2020 sheet."""
+        return pd.DataFrame({
+            "gem_20":       [1002000, 1003000, 1004000],
+            "RegioStaR2":   [1, 1, 2],
+            "RegioStaR4":   [11, 11, 21],
+            "RegioStaR17":  [111, 113, 211],
+            "RegioStaR7":   [71, 72, 74],
+            "RegioStaR5":   [51, 51, 52],
+            "RegioStaRGem7":[71, 72, 74],
+            "RegioStaRGem5":[51, 51, 52],
+        })
+
+    def test_is_bbsr2022_format_true_for_bbsr_frame(self):
+        from cleancensus.enrich import _is_bbsr2022_format
+        df = self._make_bbsr2022_frame()
+        assert _is_bbsr2022_format(df) is True
+
+    def test_is_bbsr2022_format_false_for_bmdv_frame(self):
+        from cleancensus.enrich import _is_bbsr2022_format
+        df = self._make_bmdv2020_frame()
+        assert _is_bbsr2022_format(df) is False
+
+    def test_normalize_bbsr2022_commune_id_zero_padded(self):
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert ref["commune_id"].iloc[0] == "01001000"
+        assert ref["commune_id"].iloc[1] == "01002000"
+
+    def test_normalize_bbsr2022_regiostar2_correct(self):
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert list(ref["RegioStaR2"]) == [1.0, 1.0, 2.0]
+
+    def test_normalize_bbsr2022_regiostar4_derived(self):
+        """RegioStaR4 must equal RegioStaR17 // 10."""
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        # RSS2022 = [111, 113, 221] -> RS4 = [11, 11, 22]
+        assert list(ref["RegioStaR4"]) == [11.0, 11.0, 22.0]
+
+    def test_normalize_bbsr2022_regiostar17_correct(self):
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert list(ref["RegioStaR17"]) == [111.0, 113.0, 221.0]
+
+    def test_normalize_bbsr2022_regiostar7_correct(self):
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert list(ref["RegioStaR7"]) == [71.0, 72.0, 75.0]
+
+    def test_normalize_bbsr2022_reggem5_correct(self):
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert list(ref["RegioStaRGem5"]) == [51.0, 52.0, 53.0]
+
+    def test_normalize_bbsr2022_regiostar5_is_nan(self):
+        """RegioStaR5 (Stadtregion 5-type) is not in BBSR 2022 sheet -> must be NaN."""
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert ref["RegioStaR5"].isna().all(), "RegioStaR5 should be NaN for BBSR 2022 source"
+
+    def test_normalize_bbsr2022_reggem7_is_nan(self):
+        """RegioStaRGem7 is not in BBSR 2022 sheet -> must be NaN."""
+        from cleancensus.enrich import _normalize_bbsr2022
+        df = self._make_bbsr2022_frame()
+        ref = _normalize_bbsr2022(df)
+        assert ref["RegioStaRGem7"].isna().all(), "RegioStaRGem7 should be NaN for BBSR 2022 source"
+
+    def test_normalize_bmdv2020_commune_id_zero_padded(self):
+        from cleancensus.enrich import _normalize_bmdv2020
+        df = self._make_bmdv2020_frame()
+        ref = _normalize_bmdv2020(df)
+        assert ref["commune_id"].iloc[0] == "01002000"
+
+    def test_normalize_bmdv2020_all_regiostar_cols_present(self):
+        """BMDV 2020 normalization must produce all 7 REGIOSTAR_COLS."""
+        from cleancensus.enrich import _normalize_bmdv2020, REGIOSTAR_COLS
+        df = self._make_bmdv2020_frame()
+        ref = _normalize_bmdv2020(df)
+        for col in REGIOSTAR_COLS:
+            assert col in ref.columns, f"Missing column {col!r} in BMDV 2020 normalized ref"
+
+    def test_normalize_bmdv2020_regiostar4_correct(self):
+        from cleancensus.enrich import _normalize_bmdv2020
+        df = self._make_bmdv2020_frame()
+        ref = _normalize_bmdv2020(df)
+        assert list(ref["RegioStaR4"]) == [11.0, 11.0, 21.0]
+
+    def test_output_cols_seven_total(self):
+        """Both normalizers must produce exactly 7 RegioStaR output columns."""
+        from cleancensus.enrich import _normalize_bbsr2022, _normalize_bmdv2020, REGIOSTAR_COLS
+        ref_bbsr = _normalize_bbsr2022(self._make_bbsr2022_frame())
+        ref_bmdv = _normalize_bmdv2020(self._make_bmdv2020_frame())
+        for ref in (ref_bbsr, ref_bmdv):
+            missing = [c for c in REGIOSTAR_COLS if c not in ref.columns]
+            assert not missing, f"Missing REGIOSTAR_COLS: {missing}"
