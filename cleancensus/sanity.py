@@ -5,6 +5,7 @@ Port of sanity_extend.py, parameterized by Config instead of module constants.
 
 National-mass checks are SKIPPED (printed) in subset mode.
 When cfg.derived_tenure is True, tenure checks are appended via check_tenure().
+When cfg.derived_vacancy is True, vacancy checks are appended via check_vacancy().
 """
 from __future__ import annotations
 
@@ -147,6 +148,12 @@ def run_sanity(cfg) -> int:
         from cleancensus.tenure import check_tenure
         tenure_fail = check_tenure(cfg)
         fail += tenure_fail
+
+    # 6) vacancy checks (optional)
+    if cfg.derived_vacancy:
+        from cleancensus.vacancy import check_vacancy
+        vacancy_fail = check_vacancy(cfg)
+        fail += vacancy_fail
 
     print(f"\n{fail} failures")
     return fail

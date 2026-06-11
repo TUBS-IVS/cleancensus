@@ -11,6 +11,7 @@ class TestConfigDesatisDir:
             version_tag="test",
             topics=["Whg_Gebaeudetyp"],
             derived_tenure=False,
+            derived_vacancy=False,
             mode="national",
             ars_prefixes=[],
             sanity="skip",

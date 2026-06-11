@@ -15,7 +15,7 @@ def _cfg(tmp_path, body=""):
 def test_registry_order_and_completeness():
     assert STAGE_NAMES == (
         "merge", "totals", "ages", "gemeinde", "gender", "topics8",
-        "aggs", "regiostar", "extend", "tenure", "sanity",
+        "aggs", "regiostar", "extend", "tenure", "vacancy", "sanity",
     )
     # implemented stages (R3: merge+totals; R4: ages; R5: gemeinde+gender; R6: aggs+regiostar+topics8+extend)
     impl = {s.name: s.implemented for s in REGISTRY}
@@ -24,7 +24,7 @@ def test_registry_order_and_completeness():
     assert impl["ages"]     # R4: single-year age decomposition
     assert impl["gemeinde"] # R5: Gemeinde/ARS join
     assert impl["gender"]   # R5: male/female split + orphan backfill
-    assert impl["extend"] and impl["tenure"] and impl["sanity"]
+    assert impl["extend"] and impl["tenure"] and impl["vacancy"] and impl["sanity"]
     assert impl["topics8"] and impl["aggs"] and impl["regiostar"]
 
 
@@ -38,6 +38,7 @@ def test_default_plan_only_extend_runs(tmp_path):
     actions = {s["name"]: s["action"] for s in plan(cfg)}
     assert actions["extend"] == "run"
     assert actions["tenure"] == "skip-disabled"
+    assert actions["vacancy"] == "skip-disabled"
     assert actions["sanity"] == "run"
     assert actions["merge"] == "skip-disabled"
 
@@ -76,4 +77,6 @@ def test_unknown_stage_in_config_rejected(tmp_path):
 def test_producer_stages_constant_matches_registry():
     # every producer stage is in the registry; tenure/sanity are not producer stages
     assert set(PRODUCER_STAGES) <= set(STAGE_NAMES)
-    assert "tenure" not in PRODUCER_STAGES and "sanity" not in PRODUCER_STAGES
+    assert "tenure" not in PRODUCER_STAGES
+    assert "vacancy" not in PRODUCER_STAGES
+    assert "sanity" not in PRODUCER_STAGES

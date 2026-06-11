@@ -17,6 +17,7 @@ def test_defaults(tmp_path):
     assert cfg.mode == "national"
     assert cfg.sanity == "fail"
     assert cfg.derived_tenure is False
+    assert cfg.derived_vacancy is False
     assert cfg.version_tag == "v2"
     assert cfg.out_1.name == "cells_1km_with_binneds_v2.parquet"
 

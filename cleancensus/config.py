@@ -15,6 +15,7 @@ class Config:
     # [harmonize]
     topics: list[str]          # resolved topic names (after tiers/"all" expansion)
     derived_tenure: bool
+    derived_vacancy: bool
     # [scope]
     mode: str                  # "national" | "subset"
     ars_prefixes: list[str]    # only for subset
@@ -161,6 +162,7 @@ def load_config(path: str | Path) -> Config:
         version_tag=str(data.get("version_tag", "v2")),
         topics=_resolve_topics(harmonize),
         derived_tenure=bool(harmonize.get("derived_tenure", False)),
+        derived_vacancy=bool(harmonize.get("derived_vacancy", False)),
         mode=mode,
         ars_prefixes=ars,
         sanity=sanity,

@@ -4,7 +4,7 @@ The pipeline is an ordered list of stages spanning the whole path from the raw
 Zensus 2022 grid CSVs to the final prepared/harmonized cell table:
 
     merge -> totals -> ages -> gemeinde -> gender -> topics8 -> aggs -> regiostar
-          -> extend -> tenure -> sanity
+          -> extend -> tenure -> vacancy -> sanity
 
 Each stage declares whether it is enabled (from the resolved Config), whether its
 output already exists (caching), and how to run. Stages whose port from the archived
@@ -22,8 +22,9 @@ Implemented raw->prepared stages (R3, R4, R5, R6):
   - aggs      : decade-binned gendered age aggregates + totals (reconstructed, R6)
   - regiostar : BBSR RegioStaR 2022 municipality classification join (reconstructed, R6)
 
-tenure and sanity are not "producer" stages: tenure is gated by
-``[harmonize].derived_tenure`` and sanity by ``[run].sanity`` (skip = off).
+tenure, vacancy and sanity are not "producer" stages: tenure is gated by
+``[harmonize].derived_tenure``, vacancy by ``[harmonize].derived_vacancy``,
+and sanity by ``[run].sanity`` (skip = off).
 """
 from __future__ import annotations
 
@@ -67,6 +68,16 @@ def _tenure_complete(cfg: Config) -> bool:
     return "EigentuemerHH_Tenure_100m-Gitter" in names
 
 
+def _vacancy_complete(cfg: Config) -> bool:
+    import pyarrow.parquet as pq
+
+    out100 = _final_100m_path(cfg)
+    if not out100.exists():
+        return False
+    names = set(pq.ParquetFile(out100).schema_arrow.names)
+    return "BewohntWhg_Leerstand_100m-Gitter" in names
+
+
 def _not_implemented(stage_name: str, phase: str):
     def _run(cfg: Config):
         raise NotImplementedError(
@@ -104,6 +115,8 @@ REGISTRY: tuple[Stage, ...] = (
           _producer_enabled("extend"), None, _extend_complete),  # run set below
     Stage("tenure", "derive owner/renter households from Eigentuemerquote",
           lambda cfg: cfg.derived_tenure, None, _tenure_complete),  # run set below
+    Stage("vacancy", "derive occupied/vacant dwellings from Leerstandsquote",
+          lambda cfg: cfg.derived_vacancy, None, _vacancy_complete),  # run set below
     Stage("sanity", "invariant checks on the produced output",
           lambda cfg: cfg.sanity != "skip", None,
           lambda cfg: False),  # run set below; never cached
@@ -201,6 +214,11 @@ def _run_tenure(cfg: Config):
     run_tenure(cfg)
 
 
+def _run_vacancy(cfg: Config):
+    from cleancensus.vacancy import run_vacancy
+    run_vacancy(cfg)
+
+
 def _run_sanity(cfg: Config) -> int:
     from cleancensus.sanity import run_sanity
     return run_sanity(cfg)
@@ -218,6 +236,7 @@ _RUN = {
     "regiostar": _run_regiostar,
     "extend": _run_extend,
     "tenure": _run_tenure,
+    "vacancy": _run_vacancy,
     "sanity": _run_sanity,
 }
 _IS_COMPLETE = {
@@ -229,6 +248,7 @@ _IS_COMPLETE = {
     "topics8": _topics8_complete,
     "aggs": _aggs_complete,
     "regiostar": _regiostar_complete,
+    "vacancy": _vacancy_complete,
 }
 REGISTRY = tuple(
     Stage(s.name, s.desc, s.enabled, _RUN.get(s.name, s.run),

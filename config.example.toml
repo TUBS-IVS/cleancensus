@@ -21,6 +21,7 @@ version_tag = "v2"             # suffix for output files, e.g. ..._v2.parquet
 # tiers  = [1, 2]                                 # catalog tiers
 topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus"] # explicit topic names
 derived_tenure = true          # owner/renter households derived from Eigentuemerquote
+derived_vacancy = false        # occupied/vacant dwellings derived from Leerstandsquote (universe A anchor, ~3% below official B)
 
 [scope]
 mode = "national"              # "national" or "subset"
