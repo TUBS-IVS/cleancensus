@@ -114,3 +114,122 @@ def test_regiostar_sheet_toml_override(tmp_path):
         regiostar_sheet = "Gemeindereferenz (inkl. Kreise)"
     """))
     assert cfg.regiostar_sheet == "Gemeindereferenz (inkl. Kreise)"
+
+
+# ---------------------------------------------------------------------------
+# Stage-gated input resolution tests (resolved_path_10 / _1 / _100)
+# ---------------------------------------------------------------------------
+
+def _write_with_stages(tmp_path, stages_toml: str = "") -> object:
+    """Helper: write config and create work_dir with dummy parquet artifacts."""
+    body = stages_toml
+    return _write(tmp_path, body)
+
+
+# --- resolved_path_10 ---
+
+def test_resolved_path_10_fallback(tmp_path):
+    """Stage 'ages' disabled (default) -> resolved_path_10 returns inputs_dir pickle."""
+    cfg = load_config(_write(tmp_path, ""))
+    # stage 'ages' is off by default
+    assert not cfg.stages["ages"]
+    assert cfg.resolved_path_10 == cfg.path_10
+    assert cfg.resolved_path_10.suffix == ".pickle"
+
+
+def test_resolved_path_10_prefers_work_when_stage_enabled(tmp_path):
+    """Stage 'ages' enabled + work_dir artifact present -> resolved_path_10 returns work_dir path."""
+    # Create the work_dir artifact (touch a dummy file)
+    cfg = load_config(_write(tmp_path, """
+        [stages]
+        ages = true
+    """))
+    work_artifact = cfg.work_dir / "df10_with_single_years.parquet"
+    work_artifact.parent.mkdir(parents=True, exist_ok=True)
+    work_artifact.touch()
+    assert cfg.stages["ages"]
+    assert cfg.resolved_path_10 == work_artifact
+    assert cfg.resolved_path_10.suffix == ".parquet"
+
+
+def test_resolved_path_10_ignores_work_when_stage_disabled(tmp_path):
+    """KEY safety test: work_dir artifact exists but stage 'ages' is off -> inputs_dir path returned."""
+    cfg = load_config(_write(tmp_path, ""))
+    # Create the work artifact — must NOT be picked up when stage is disabled
+    work_artifact = cfg.work_dir / "df10_with_single_years.parquet"
+    work_artifact.parent.mkdir(parents=True, exist_ok=True)
+    work_artifact.touch()
+    assert not cfg.stages["ages"]
+    assert cfg.resolved_path_10 == cfg.path_10  # falls back to inputs_dir pickle
+
+
+# --- resolved_path_1 ---
+
+def test_resolved_path_1_fallback(tmp_path):
+    """Stage 'topics8' disabled (default) -> resolved_path_1 returns inputs_dir parquet."""
+    cfg = load_config(_write(tmp_path, ""))
+    assert not cfg.stages["topics8"]
+    assert cfg.resolved_path_1 == cfg.path_1
+    assert "cells_1km_with_binneds" in cfg.resolved_path_1.name
+
+
+def test_resolved_path_1_prefers_work_when_stage_enabled(tmp_path):
+    """Stage 'topics8' enabled -> resolved_path_1 returns work_dir path."""
+    cfg = load_config(_write(tmp_path, """
+        [stages]
+        topics8 = true
+    """))
+    work_artifact = cfg.work_dir / "cells_1km_with_binneds.parquet"
+    work_artifact.parent.mkdir(parents=True, exist_ok=True)
+    work_artifact.touch()
+    assert cfg.stages["topics8"]
+    assert cfg.resolved_path_1 == work_artifact
+
+
+def test_resolved_path_1_ignores_work_when_stage_disabled(tmp_path):
+    """KEY safety test: work_dir artifact exists but stage 'topics8' is off -> inputs_dir path returned."""
+    cfg = load_config(_write(tmp_path, ""))
+    work_artifact = cfg.work_dir / "cells_1km_with_binneds.parquet"
+    work_artifact.parent.mkdir(parents=True, exist_ok=True)
+    work_artifact.touch()
+    assert not cfg.stages["topics8"]
+    assert cfg.resolved_path_1 == cfg.path_1
+
+
+# --- resolved_path_100 ---
+
+def test_resolved_path_100_fallback(tmp_path):
+    """Stage 'regiostar' disabled (default) -> resolved_path_100 returns inputs_dir parquet."""
+    cfg = load_config(_write(tmp_path, ""))
+    assert not cfg.stages["regiostar"]
+    assert cfg.resolved_path_100 == cfg.path_100
+    assert "regiostar" in cfg.resolved_path_100.name
+
+
+def test_resolved_path_100_prefers_work_when_stage_enabled(tmp_path):
+    """Stage 'regiostar' enabled -> resolved_path_100 returns work_dir path."""
+    cfg = load_config(_write(tmp_path, """
+        [stages]
+        regiostar = true
+    """))
+    work_artifact = (
+        cfg.work_dir
+        / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+    )
+    work_artifact.parent.mkdir(parents=True, exist_ok=True)
+    work_artifact.touch()
+    assert cfg.stages["regiostar"]
+    assert cfg.resolved_path_100 == work_artifact
+
+
+def test_resolved_path_100_ignores_work_when_stage_disabled(tmp_path):
+    """KEY safety test: work_dir artifact exists but stage 'regiostar' is off -> inputs_dir path returned."""
+    cfg = load_config(_write(tmp_path, ""))
+    work_artifact = (
+        cfg.work_dir
+        / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+    )
+    work_artifact.parent.mkdir(parents=True, exist_ok=True)
+    work_artifact.touch()
+    assert not cfg.stages["regiostar"]
+    assert cfg.resolved_path_100 == cfg.path_100

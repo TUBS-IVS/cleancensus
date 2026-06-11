@@ -6,6 +6,9 @@ inputs_dir  = "data/inputs"    # must contain the three canonical input files (s
 outputs_dir = "data/outputs"   # versioned outputs + run manifest land here
 version_tag = "v2"             # suffix for output files, e.g. ..._v2.parquet
 # destatis_raw_dir = "data/raw/destatis"  # auto-derived; override only if ZIPs are elsewhere
+# Note: when the corresponding producer stage is enabled (e.g. stages.ages / stages.topics8 /
+# stages.regiostar), the pipeline automatically reads intermediate artifacts from data/work/
+# instead of the canonical inputs_dir files (stage-gated input resolution — full-mode chain).
 
 # RegioStaR reference workbook (regiostar stage).  Default: auto-discovered in this order:
 #   1. data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx  (BBSR Referenz Gemeinden 31.12.2022)

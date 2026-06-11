@@ -101,7 +101,7 @@ def run_tenure(cfg) -> None:
         # Row order is preserved: stage_b filtered path_100 to these parents in
         # parquet scan order; we replicate the same filter here.
         p_1km_sub = set(df100["GITTER_ID_1km"].unique())
-        df_src = pd.read_parquet(cfg.path_100, columns=["GITTER_ID_1km", QUOTE_100, HH_ADJ_100])
+        df_src = pd.read_parquet(cfg.resolved_path_100, columns=["GITTER_ID_1km", QUOTE_100, HH_ADJ_100])
         df_src["GITTER_ID_1km"] = df_src["GITTER_ID_1km"].astype(str).str.strip()
         df_src = df_src[df_src["GITTER_ID_1km"].isin(p_1km_sub)].reset_index(drop=True)
         # Align by position (same scan order as stage_b)

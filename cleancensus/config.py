@@ -53,6 +53,48 @@ class Config:
         return self.inputs_dir.parent / "work"
 
     @property
+    def resolved_path_10(self) -> Path:
+        """Prefer the work_dir artifact when the producer stage is enabled (full-mode chain),
+        else fall back to the prepared file in inputs_dir.
+
+        When stage 'ages' is enabled, the ages stage writes
+        work_dir/df10_with_single_years.parquet (parquet format).
+        Otherwise falls back to cfg.path_10 (pickle in inputs_dir).
+        """
+        if self.stages.get("ages", False):
+            return self.work_dir / "df10_with_single_years.parquet"
+        return self.path_10
+
+    @property
+    def resolved_path_1(self) -> Path:
+        """Prefer the work_dir artifact when the producer stage is enabled (full-mode chain),
+        else fall back to the prepared file in inputs_dir.
+
+        When stage 'topics8' is enabled, the topics8 stage writes
+        work_dir/cells_1km_with_binneds.parquet.
+        Otherwise falls back to cfg.path_1.
+        """
+        if self.stages.get("topics8", False):
+            return self.work_dir / "cells_1km_with_binneds.parquet"
+        return self.path_1
+
+    @property
+    def resolved_path_100(self) -> Path:
+        """Prefer the work_dir artifact when the producer stage is enabled (full-mode chain),
+        else fall back to the prepared file in inputs_dir.
+
+        When stage 'regiostar' is enabled, the regiostar stage writes
+        work_dir/cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet.
+        Otherwise falls back to cfg.path_100.
+        """
+        if self.stages.get("regiostar", False):
+            return (
+                self.work_dir
+                / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+            )
+        return self.path_100
+
+    @property
     def destatis_raw_dir(self) -> Path:
         """Directory containing the 6 Destatis CSV ZIPs (copied from Downloads).
         Defaults to data/raw/destatis (sibling of inputs_dir, gitignored).

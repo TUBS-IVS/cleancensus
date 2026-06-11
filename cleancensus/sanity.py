@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
+from cleancensus.stages import load_frame
 from cleancensus.topics import build_new_topic_specs
 
 ANCHOR_GEB_HEIZ = "Insgesamt_Heizungsart_Gebaeude_nach_ueberwiegender_Heizungsart_100m-Gitter_adj"
@@ -117,7 +118,7 @@ def run_sanity(cfg) -> int:
     # 3) global mass: 100m adj sum vs 10km raw national sum per topic (within 2%)
     #    SKIPPED in subset mode — the subset sum will never match the national 10km total.
     if cfg.mode == "national":
-        df10 = pd.read_pickle(cfg.path_10).reset_index(drop=False)
+        df10 = load_frame(cfg.resolved_path_10).reset_index(drop=False)
         for s in build_new_topic_specs("1km", names=cfg.topics):
             adj_col = adj_of(s.name)
             if adj_col not in df.columns:

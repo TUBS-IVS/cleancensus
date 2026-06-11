@@ -29,6 +29,22 @@ DOWNSCALE_KW = dict(
 )
 
 
+def load_frame(path) -> "pd.DataFrame":
+    """Load a DataFrame from path, dispatching on file suffix.
+
+    Supports .parquet (pd.read_parquet) and .pickle / .pkl (pd.read_pickle).
+    Raises ValueError for unrecognised suffixes.
+    """
+    from pathlib import Path
+    p = Path(path)
+    suffix = p.suffix.lower()
+    if suffix == ".parquet":
+        return pd.read_parquet(p)
+    if suffix in (".pickle", ".pkl"):
+        return pd.read_pickle(p)
+    raise ValueError(f"load_frame: unrecognised file suffix {suffix!r} for {p}")
+
+
 def build_subset_parents(cfg) -> "set[str] | None":
     """Return the set of GITTER_ID_1km parent ids for the configured ARS prefixes.
 
@@ -40,7 +56,7 @@ def build_subset_parents(cfg) -> "set[str] | None":
         return None
 
     df = pd.read_parquet(
-        cfg.path_100,
+        cfg.resolved_path_100,
         columns=["GITTER_ID_1km", "Kreis", "Land", "Regierungsbezirk"],
     )
     ars5 = (
@@ -61,8 +77,8 @@ def run_stage_a(cfg) -> None:
     if not specs:
         sys.exit("[stage_a] no specs matched topics; aborting")
 
-    df10 = pd.read_pickle(cfg.path_10).reset_index(drop=False)
-    df1 = pd.read_parquet(cfg.path_1)
+    df10 = load_frame(cfg.resolved_path_10).reset_index(drop=False)
+    df1 = load_frame(cfg.resolved_path_1)
     for df in (df10, df1):
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         df.fillna(0, inplace=True)
@@ -102,7 +118,7 @@ def run_stage_a(cfg) -> None:
 def run_stage_b(cfg) -> None:
     """Port of stage_b: downscale 1km -> 100m, writes cfg.out_100 (or _SUBSET).
 
-    For national mode: streams from cfg.path_100 and writes cfg.out_100.
+    For national mode: streams from cfg.resolved_path_100 and writes cfg.out_100.
     For subset mode: filters in-memory and writes cfg.out_100.with_name(..._SUBSET.parquet).
     """
     import pyarrow as pa
@@ -122,7 +138,7 @@ def run_stage_b(cfg) -> None:
         needed.add(spec.child_row_total_col)
         needed.update(spec.child_cat_cols)
     df100_min = (
-        pd.read_parquet(cfg.path_100, columns=sorted(needed))
+        pd.read_parquet(cfg.resolved_path_100, columns=sorted(needed))
         .reset_index(drop=True)
     )
     df100_min.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -197,7 +213,7 @@ def run_stage_b(cfg) -> None:
         return
 
     # National mode: stream-append to the full file
-    dataset = ds.dataset(cfg.path_100, format="parquet")
+    dataset = ds.dataset(cfg.resolved_path_100, format="parquet")
     keep_cols = list(dataset.schema.names)
 
     new_cols = []
