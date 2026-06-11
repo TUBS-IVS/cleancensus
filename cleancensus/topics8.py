@@ -44,10 +44,12 @@ def run_topics8_1km(df10_path: str | Path, df1_path: str | Path, out_1_path: str
     df1_path = Path(df1_path)
     out_1_path = Path(out_1_path)
 
+    from cleancensus.stages import load_frame
+
     print(f"[topics8-1km] reading {df10_path} ...")
-    df10 = pd.read_pickle(df10_path).reset_index(drop=False)
+    df10 = load_frame(df10_path).reset_index(drop=False)
     print(f"[topics8-1km] reading {df1_path} ...")
-    df1 = pd.read_pickle(df1_path).reset_index(drop=False)
+    df1 = load_frame(df1_path).reset_index(drop=False)
 
     # Clean NaNs/±inf
     for df in (df10, df1):
@@ -306,8 +308,14 @@ def run_topics8(cfg) -> None:
     work_dir = cfg.work_dir
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    df10_path = work_dir / "df10_with_single_years.pickle"
-    df1_pickle = work_dir / "df1_with_single_years.pickle"
+    # the ages stage writes parquet; legacy gate runs used T:-era pickles —
+    # prefer the parquet if present (load_frame dispatches on suffix)
+    def _pick(stem: str):
+        pq_path = work_dir / f"{stem}.parquet"
+        return pq_path if pq_path.exists() else work_dir / f"{stem}.pickle"
+
+    df10_path = _pick("df10_with_single_years")
+    df1_pickle = _pick("df1_with_single_years")
     path_100 = work_dir / "cells_100m_with_gender_backfilled.parquet"
     out_1 = work_dir / "cells_1km_with_binneds.parquet"
     out_100 = work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
