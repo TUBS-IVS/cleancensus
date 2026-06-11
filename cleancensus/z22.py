@@ -519,6 +519,16 @@ def run_merge_z22(cfg) -> None:
             destatis_df = merge_destatis_tables(level, destatis_dir)
             if destatis_df is not None:
                 gid_col = f"GITTER_ID_{level}"
+                # collision guard: z22data already covers some supplement columns
+                # (e.g. family_type == Typ_der_Kernfamilie_nach_Kindern, gated EXACT)
+                # — a plain merge would produce _x/_y duplicate columns that crash
+                # downstream parquet writes. z22 columns take precedence.
+                overlap = [c for c in destatis_df.columns
+                           if c != gid_col and c in df.columns]
+                if overlap:
+                    print(f"[merge/z22] level={level}: dropping {len(overlap)} supplement "
+                          f"columns already provided by z22data (e.g. {overlap[0]})")
+                    destatis_df = destatis_df.drop(columns=overlap)
                 before = df.shape[1]
                 df = df.merge(destatis_df, on=gid_col, how="left")
                 added = df.shape[1] - before
@@ -532,6 +542,16 @@ def run_merge_z22(cfg) -> None:
                 "Copy the 6 ZIPs there to include the 6 missing topics."
             )
         # ----------------------------------------------------------------------
+
+        # fail fast on non-numeric data columns (a stray object column would
+        # otherwise crash much later inside pyarrow's threaded conversion)
+        gid_col = f"GITTER_ID_{level}"
+        bad = [c for c in df.columns
+               if c != gid_col and df[c].dtype == object]
+        if bad:
+            raise TypeError(
+                f"[merge/z22] level={level}: non-numeric data columns after merge "
+                f"(first 5): {bad[:5]} — refusing to write a corrupt merged table")
 
         out_path = cfg.work_dir / f"merged_{level}_gitter.parquet"
         out_path.parent.mkdir(parents=True, exist_ok=True)
