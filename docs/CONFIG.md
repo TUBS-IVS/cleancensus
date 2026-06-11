@@ -22,6 +22,10 @@ All paths in the config are resolved relative to the directory that contains the
 | `inputs_dir` | string (path) | `"data/inputs"` | Must exist at run time | Directory containing the three canonical input files |
 | `outputs_dir` | string (path) | `"data/outputs"` | Created if absent | Destination for versioned output parquet files and the run manifest |
 | `version_tag` | string | `"v2"` | Any string; avoid spaces and slashes | Appended to output file names to distinguish pipeline runs |
+| `destatis_raw_dir` | string (path) | *(derived)* | Optional | Override for the Destatis CSV ZIPs directory (default: `data/raw/destatis/` sibling of `inputs_dir`). Populated automatically by the merge stage if the directory exists. |
+| `regiostar_ref` | string (path) | *(auto-discovered)* | Optional | Override the BBSR RegioStaR reference workbook. Default: auto-discovers the BBSR Referenz Gemeinden Gebietsstand 31.12.2022 xlsx in `data/raw/regiostar/`; falls back to the BMDV Gebietsstand2020 file if absent. |
+| `regiostar_sheet` | string | `""` | Optional | Sheet name within the `regiostar_ref` workbook. Leave empty for auto-detection. |
+| `regionaltabellen_xlsx` | string (path) | *(derived)* | Optional | Path to `Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx` for `--gemeinde-controls`. Default: `data/raw/regionaltabellen/Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx`. |
 
 ### `[harmonize]`
 
@@ -38,6 +42,7 @@ as PopulationSim controls for: building type via the geocoded `haustyp` variable
 | `topics` | list of strings, or the literal string `"all"` | *(omit for default)* | Each name must be in `RAW_TOPICS`; `"all"` selects all 14 catalog topics; mutually exclusive with `tiers` | Explicit list of topic names to harmonize |
 | `tiers` | list of integers | *(omit for default)* | Values must be from `{1, 2, 3}`; mutually exclusive with `topics` | Selects all topics belonging to the given tiers |
 | `derived_tenure` | bool | `false` | — | When `true`, runs `run_tenure` after the harmonization stages and appends tenure checks to `run_sanity`. Tenure anchors to the harmonized household total already present in the 100 m INPUT file; it does **not** require any specific topic in `[harmonize].topics`. |
+| `derived_vacancy` | bool | `false` | — | When `true`, runs `run_vacancy` after the harmonization stages and adds `BewohntWhg_Leerstand_*` (occupied) and `LeerstehendWhg_Leerstand_*` (vacant) dwelling columns to both the 1 km and 100 m outputs. Anchored to the universe-A dwelling total (Wohnungen nach Zahl der Raeume ≈ 41.8 M). Signal: `Leerstandsquote > 0`; zero-quote cells receive parent-share fill. National vacancy rate ≈ 4.26 % (official Zensus 2022 ≈ 4.3 %). |
 
 ### `[scope]`
 
@@ -91,6 +96,7 @@ string values at the top level — they are read via `getattr(cfg, key, None)` a
 | `--dry-run` | Print the resolved execution plan and exit; no I/O |
 | `--force` | Re-run stages even if their outputs already exist (bypass cache) |
 | `--from <stage>` | Skip all stages before `<stage>` (treat them as already complete) |
+| `--gemeinde-controls` | Parse Regionaltabellen P2/P4 into Gemeinde-level parquets and exit. Does not run any pipeline stage. Source: `data/raw/regionaltabellen/Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx` (or `regionaltabellen_xlsx` in config). Writes `outputs_dir/gemeinde_controls/{erwerbsstatus,schulabschluss,berufl_abschluss}.parquet`. See [`docs/GEMEINDE_CONTROLS.md`](GEMEINDE_CONTROLS.md). |
 
 ---
 

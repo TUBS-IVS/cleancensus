@@ -208,6 +208,7 @@ Full documentation: [`docs/CONFIG.md`](docs/CONFIG.md).
 | `[harmonize]` | `topics` | list of strings or `"all"` | *(see note)* | Explicit topic names to harmonize; mutually exclusive with `tiers` |
 | `[harmonize]` | `tiers` | list of integers | *(see note)* | Topic tiers to include (1, 2, 3); mutually exclusive with `topics` |
 | `[harmonize]` | `derived_tenure` | bool | `false` | Derive owner/renter counts from `Eigentuemerquote` |
+| `[harmonize]` | `derived_vacancy` | bool | `false` | Derive occupied/vacant dwelling counts from `Leerstandsquote` (adds `BewohntWhg_*` + `LeerstehendWhg_*`; anchored to universe A) |
 | `[scope]` | `mode` | `"national"` or `"subset"` | `"national"` | National run processes all cells; subset filters by ARS prefix |
 | `[scope]` | `ars_prefixes` | list of strings | `[]` | Required when `mode = "subset"`; ARS-5 codes to include |
 | `[run]` | `sanity` | `"fail"`, `"warn"`, or `"skip"` | `"fail"` | Invariant-check behaviour: fail aborts (exit 1), warn prints, skip omits |
@@ -233,15 +234,17 @@ Cross-reference the gate reports in [`docs/`](docs/) for full details.
 |---|---|---|---|
 | **merge (z22)** | Shared columns: 157/158 exact at 10 km; 158/159 exact at 1 km | PASS | [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) |
 | **merge (z22) — 1 orphan** | `households_0` at 10 km: −0.018 % (disclosure suppression); at 1 km: −13 % (cell-level suppression expected) | NEAR-EXACT / SYSTEMATIC (not a port bug) | same |
+| **merge (z22) — Destatis supplement** | 33/33 columns EXACT at 10 km; 33/33 EXACT at 1 km; +14/14 columns for 7th table (`Typ_der_Kernfamilie_nach_Kindern`) | PASS | same |
 | **totals** | 10 km exact; 1 km max\|d\| = 3.6e-12 | PASS | [`docs/AGES_GATE_REPORT.md`](docs/AGES_GATE_REPORT.md) |
 | **ages** | 10 km exact; 1 km exact (212 k cells); 100 m exact (subset, 54 cells) | PASS | same |
 | **gemeinde** | ARS sub-field transform verified on 100 unique ARS; T: artifact internal consistency confirmed (3,148,224 rows) | PASS | [`docs/GENDER_GATE_REPORT.md`](docs/GENDER_GATE_REPORT.md) |
 | **gender** | Bavaria subset (575,875 rows): column sums relative diff < 2.4e-6 (float32 noise); backfill 36/36 rows exact | PASS | same |
 | **topics8** | 1 km max\|d\| = 0; ZGB 78/82 exact + 1 benign orphan cell | PASS | (inline) |
 | **aggs** | Gendered bins: exact zero diff; AGE_\* float noise ~1e-7 (M+F sum) | PASS | (inline) |
-| **regiostar** | 100 % match rate against ReferenzGebietsstand2020; ~5,188 NaN rows (no-municipality cells) | PASS | (inline) |
+| **regiostar** | BBSR Gebietsstand 31.12.2022: null-rim 5,188 → 633 cells (−4,555); match rate ≥ 99.97 % vs BMDV2020 | PASS | same |
 | **extend** | ZGB equivalence gate max\|d\| = 3.05e-05 (float32 noise); raw totals bit-exact | PASS | (inline) |
 | **tenure** | National owner share 0.4419 (Zensus 2022 benchmark ≈ 0.436); 4 orphan cells deviate ≤ 3 HH (benign) | PASS | see below |
+| **vacancy** | ZGB: 0 sanity failures; national signal rate 4.26 % (official Zensus 2022 ≈ 4.3 %); anchored to universe A | PASS | [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) |
 
 ### End-to-end output (extend + tenure + sanity)
 
@@ -285,8 +288,10 @@ required two runs (legacy v2 + v3).
 | `cleancensus/topics.py` | Topic catalog: `RAW_TOPICS` (14 topics in 3 tiers) and `MID_CONTROLLABLE_DEFAULT` |
 | `cleancensus/stages.py` | `run_stage_a` (10 km → 1 km) and `run_stage_b` (1 km → 100 m, streamed) for the extend stage |
 | `cleancensus/tenure.py` | `run_tenure` and `check_tenure` — owner/renter derivation |
+| `cleancensus/vacancy.py` | `run_vacancy` and `check_vacancy` — occupied/vacant dwelling derivation from `Leerstandsquote` |
+| `cleancensus/gemeinde_controls.py` | `build_gemeinde_controls()`, `run_gemeinde_controls()` — parse Regionaltabellen P2/P4 into Gemeinde-level control parquets |
 | `cleancensus/sanity.py` | `run_sanity` — post-run invariant checks |
-| `cleancensus/cli.py` | `main()` — CLI entry point (`uv run cleancensus`) with `--dry-run`, `--force`, `--from` flags |
+| `cleancensus/cli.py` | `main()` — CLI entry point (`uv run cleancensus`) with `--dry-run`, `--force`, `--from`, `--gemeinde-controls` flags |
 | `tools/equivalence_zgb.py` | Cell-exact equivalence gate comparing two output parquet files |
 | `notebooks_archive/` | Original notebook pipeline (preserved for provenance; see `notebooks_archive/ARCHIVE_README.md`) — fully superseded by pipeline stages |
 | `docs/METHOD.md` | Mathematical method description |
@@ -295,8 +300,9 @@ required two runs (legacy v2 + v3).
 | `docs/Z22_GATE_REPORT.md` | z22data ingest validation: GITTER_ID formula, 10 km / 1 km gates, coverage completion |
 | `docs/AGES_GATE_REPORT.md` | Totals and ages stage gate report |
 | `docs/GENDER_GATE_REPORT.md` | Gemeinde and gender stage gate report |
+| `docs/GEMEINDE_CONTROLS.md` | Gemeinde-level control tables: contents, category lists, MiD crosswalks, geography note, overspecification warning |
 | `docs/RAW_DOWNLOAD.md` | How to download raw Zensus 2022 CSVs (z22data mirror + Destatis portal) |
-| `tests/` | pytest suite (125+ tests, synthetic fixtures) |
+| `tests/` | pytest suite (208+ tests, synthetic fixtures) |
 | `data/` | Gitignored; `inputs/` (prepared files or outputs of stages 1–8), `outputs/` (final versioned files), `work/` (stage intermediates) |
 | `config.example.toml` | Annotated example configuration |
 
@@ -320,6 +326,13 @@ and the levels disagree — the problem this pipeline fixes.
   [z22data GitHub mirror](https://github.com/JsLth/z22data) by Jonas Lieth
   ([z22 R package](https://github.com/JsLth/z22)) — stable Parquet URLs, same dl-de/by-2-0
   licence, no portal navigation required. Enable with `[stages] merge = true` in your config.
+  The merge stage also ingests a **Destatis-CSV supplement** (7 tables: Seniorenstatus,
+  Lebensform, Familien-Typ, Religion, Zahl der Staatsangehörigkeiten, Größe der Kernfamilie,
+  Typ der Kernfamilie nach Kindern) from `data/raw/destatis/`; all 33+14 columns gate EXACT
+  against the notebook-era T: artifacts. See `docs/Z22_GATE_REPORT.md`.
+- **RegioStaR reference:** the `regiostar` stage uses the **BBSR Referenz Gemeinden
+  Gebietsstand 31.12.2022** workbook (auto-discovered in `data/raw/regiostar/`), reducing
+  null-rim cells from 5,188 (BMDV Gebietsstand 2020) to 633 (−4,555 cells matched).
 - **Manual alternative:** Zensus 2022 → *Gitterdaten zum Download für GIS* via
   [www.zensus2022.de](https://www.zensus2022.de) (*Ergebnisse → Gitterzellenbasierte
   Ergebnisse*; currently hosted on

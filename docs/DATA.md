@@ -135,6 +135,23 @@ In addition, `cleancensus/harmonization.py` contains the original 8 topics
 Wohnflaeche, Geburtsland) that were harmonized in the notebook era;
 their adjusted columns are present in `cells_1km_with_binneds.parquet` as inputs.
 
+### Destatis-CSV supplement columns (7 tables, all gated EXACT)
+
+The `merge` stage optionally ingests 7 Destatis CSV ZIPs from `data/raw/destatis/`
+that supply topics absent from z22data (z11-only in z22data's feature set).
+All 33 + 14 produced columns gate EXACT against the notebook-era T: artifacts
+(see `docs/Z22_GATE_REPORT.md`).
+
+| ZIP name | Column group | Categories |
+|---|---|---|
+| `Seniorenstatus_eines_privaten_Haushalts.zip` | `*_Seniorenstatus_eines_privaten_Haushalts_*` | 4 (Insgesamt + 3 senior-status types) |
+| `Typ_des_privaren_Haushalts_Lebensform.zip` | `*_Typ_priv_HH_Lebensform_*` | 8 (Insgesamt + 7 lifestyle types) |
+| `Typ_des_privaten_Haushalts_Familien.zip` | `*_Typ_priv_HH_Familie_*` | 6 (Insgesamt + 5 family types) |
+| `Religion.zip` | `*_Religion_*` | 4 (Insgesamt + kath. + evang. + Sonstiges/ohne) |
+| `Zahl_der_Staatsangehoerigkeiten.zip` | `*_Zahl_der_Staatsangehoerigkeiten_*` | 5 (Insgesamt + 4 citizenship-count cats) |
+| `Groesse_der_Kernfamilie.zip` | `*_Grosse_Kernfamilie_bis6undmehrPers_*` | 6 (Insgesamt + 5 family-size cats) |
+| `Typ_der_Kernfamilie_nach_Kindern.zip` | `*_Typ_der_Kernfamilie_nach_Kindern_*` | 14 (Insgesamt + 13 family-type-by-children cats) |
+
 ### Tenure columns (when `derived_tenure = true`)
 
 Two columns are added to both the 1 km and 100 m output files:
@@ -147,6 +164,39 @@ Two columns are added to both the 1 km and 100 m output files:
 | `MieterHH_Tenure_100m-Gitter` | 100 m | Estimated number of renter households |
 
 Values are stored as `float32`.
+
+### Vacancy columns (when `derived_vacancy = true`)
+
+Two columns are added to both the 1 km and 100 m output files:
+
+| Column | Level | Description |
+|---|---|---|
+| `BewohntWhg_Leerstand_1km-Gitter` | 1 km | Estimated number of occupied (inhabited) dwellings |
+| `LeerstehendWhg_Leerstand_1km-Gitter` | 1 km | Estimated number of vacant dwellings |
+| `BewohntWhg_Leerstand_100m-Gitter` | 100 m | Estimated number of occupied dwellings |
+| `LeerstehendWhg_Leerstand_100m-Gitter` | 100 m | Estimated number of vacant dwellings |
+
+Values are stored as `float32`. Derived from the `Leerstandsquote` ratio column and anchored
+to the universe-A dwelling total (`Insgesamt_Wohnungen_Wohnungen_nach_Zahl_der_Raeume_*_adj`
+≈ 41.8 M dwellings). **Universe-A approximation note:** The official Zensus 2022 vacancy rate
+(4.3 %) is defined on universe B (≈ 42.5 M dwellings in residential buildings); anchoring to
+universe A introduces a ~1.7 % universe difference, so `occupied + vacant` will sum to universe A
+(not B). National vacancy signal rate: 4.26 % (consistent with official ≈ 4.3 %).
+
+### Gemeinde-level control outputs (`--gemeinde-controls`)
+
+Running `uv run cleancensus --config config.toml --gemeinde-controls` writes three Parquet
+files to `<outputs_dir>/gemeinde_controls/`:
+
+| File | Universe | National total (Bund) | Gemeinde rows | Description |
+|---|---|---|---|---|
+| `erwerbsstatus.parquet` | Persons 15+ | 80,777,360 | 10,786 | Labour-force participation (Erwerbstätige, Erwerbslose, Nichterwerbspersonen) by sex |
+| `schulabschluss.parquet` | Persons 15+ | 69,439,520 | 10,786 | Highest school qualification (Hauptschule, POS, Realschule, Abitur, ohne) by sex |
+| `berufl_abschluss.parquet` | Persons 15+ | 69,439,520 | 10,786 | Highest vocational qualification (Lehre, Fachschule, Bachelor, Master, Diplom, Promotion, ohne) by sex |
+
+All three tables carry 12-digit ARS keys; suppressed values are NaN. See
+[`docs/GEMEINDE_CONTROLS.md`](GEMEINDE_CONTROLS.md) for the full column dictionary, MiD
+crosswalks, and the geography/overspecification notes.
 
 ---
 

@@ -11,6 +11,54 @@ Dates are the date the run was validated or the version was released.
 
 ---
 
+## [Unreleased] — Gemeinde controls, Destatis supplement, RegioStaR BBSR 2022, vacancy topic
+
+### Gemeinde-level control tables (T4)
+
+- `cleancensus/gemeinde_controls.py`: `build_gemeinde_controls()` and `run_gemeinde_controls()` —
+  parse Zensus Regionaltabellen P2 (Bildung+Erwerbstätigkeit) into Gemeinde-level parquets:
+  `erwerbsstatus.parquet`, `schulabschluss.parquet`, `berufl_abschluss.parquet`.
+- 10,786 Gemeinden per table; suppressed values ('/' marker) → NaN; ARS zero-padded to 12 digits.
+- National totals (Bund): Erwerbsstatus 80,777,360 (Erwerbstätige 41,043,450);
+  Schulabschluss + Berufl. Abschluss 69,439,520 each.
+- Suppression share ~85–89 % of cell values; unsuppressed Gemeinden (1,578 with total data)
+  cover 74 % of the national Erwerbsstatus total.
+- `--gemeinde-controls` flag added to `cleancensus/cli.py`: runs `run_gemeinde_controls`
+  immediately after config load and exits; skips all pipeline stages.
+- `docs/GEMEINDE_CONTROLS.md`: table contents, category lists, MiD crosswalk proposals
+  (Erwerbsstatus ↔ MiD `taet`, Schulabschluss ↔ `bildung1`, berufl. Abschluss ↔ `bildung2`),
+  multi-geography note, overspecification warning.
+- `tests/test_gemeinde_controls.py`: 26 unit tests — parser, Gemeinde-row filtering,
+  suppression→NaN, multi-sheet, `run_gemeinde_controls` smoke, category-code constants.
+
+### Destatis-CSV supplement (7 tables, T1 continuation)
+
+- All 33 + 14 columns from the 7 Destatis ZIPs gate **EXACT** against T: artifacts at both
+  10 km and 1 km (national sum diff = 0, n_diff = 0 per cell on inner join).
+- 7th table (`Typ_der_Kernfamilie_nach_Kindern.zip`, 14 data columns) resolves the 14
+  previously out-of-scope T: columns.
+- `docs/DATA.md`: Destatis supplement column group table added.
+
+### RegioStaR BBSR Gebietsstand 31.12.2022 (T2/T3)
+
+- `enrich.py` (`run_regiostar`) now auto-discovers the BBSR Referenz Gemeinden
+  Gebietsstand 31.12.2022 workbook in `data/raw/regiostar/`.
+- Null-rim improvement: 5,188 → 633 unmatched cells (−4,555); match rate ≥ 99.97 % vs BMDV2020.
+- `docs/Z22_GATE_REPORT.md`: RegioStaR gate section added with column mapping, match rates,
+  and null-rim comparison.
+
+### Vacancy derived topic (`derived_vacancy`) (T3)
+
+- `cleancensus/vacancy.py`: `run_vacancy()` derives `BewohntWhg_Leerstand_*` and
+  `LeerstehendWhg_Leerstand_*` columns at 1 km and 100 m from `Leerstandsquote`.
+- Anchored to universe A (Wohnungen nach Zahl der Raeume ≈ 41.8 M).
+- National signal rate 4.26 % (official Zensus 2022 ≈ 4.3 %).
+- ZGB sanity: 0 failures; `occupied + vacant == DWG_adj` per cell (max |d| < 0.5).
+- `[harmonize] derived_vacancy = true` wires the stage in `pipeline.py`.
+- `docs/DATA.md`: vacancy column table + universe-A approximation note.
+
+---
+
 ## [Unreleased] — full raw→final pipeline + documentation
 
 ### Full raw→final pipeline (stages 1–11)
