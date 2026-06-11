@@ -434,6 +434,10 @@ def build_merged_table(level: str, src_dir: str | Path) -> "pd.DataFrame":
             continue
 
         df = pq.read_table(parquet_path).to_pandas()
+        # z22data parquet dtypes are inconsistent across levels (e.g. 100m
+        # family_type_* carry value as STRING while 10km/1km are int64).
+        # Coerce defensively; verified loss-free (the strings are plain digits).
+        df["value"] = pd.to_numeric(df["value"], errors="coerce")
         col_name = base_name + suffix
 
         # Build GITTER_ID
