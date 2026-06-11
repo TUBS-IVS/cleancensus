@@ -47,6 +47,14 @@ class Config:
         return self.inputs_dir.parent / "work"
 
     @property
+    def destatis_raw_dir(self) -> Path:
+        """Directory containing the 6 Destatis CSV ZIPs (copied from Downloads).
+        Defaults to data/raw/destatis (sibling of inputs_dir, gitignored).
+        Create it and populate it before enabling the merge stage.
+        """
+        return self.inputs_dir.parent / "raw" / "destatis"
+
+    @property
     def out_1(self) -> Path:
         return self.outputs_dir / f"cells_1km_with_binneds_{self.version_tag}.parquet"
 

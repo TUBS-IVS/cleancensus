@@ -5,6 +5,7 @@
 inputs_dir  = "data/inputs"    # must contain the three canonical input files (see docs/DATA.md)
 outputs_dir = "data/outputs"   # versioned outputs + run manifest land here
 version_tag = "v2"             # suffix for output files, e.g. ..._v2.parquet
+# destatis_raw_dir = "data/raw/destatis"  # auto-derived; override only if ZIPs are elsewhere
 
 [harmonize]
 # Choose ONE of the following selectors (or omit both for the MiD-controllable default):
