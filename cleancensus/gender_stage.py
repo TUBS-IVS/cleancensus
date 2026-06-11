@@ -65,6 +65,13 @@ _T_1000A = Path(
     r"T:\petre\UCFL\Synthetic Population\Zensus\additional_data\1000A-2027_de.csv"
 )
 
+# data/raw local copy — resolved at import time relative to this file's package root
+_LOCAL_1000A = (
+    Path(__file__).resolve().parent.parent
+    / "data" / "raw" / "genesis"
+    / "1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv"
+)
+
 # ---------------------------------------------------------------------------
 # Part 1: parse 1000A-2027_de.csv (cells [0] + [1])
 # ---------------------------------------------------------------------------
@@ -535,15 +542,32 @@ def backfill_orphans(
 
 
 def _resolve_1000a_csv(cfg) -> Path:
-    """Return path to 1000A-2027_de.csv from cfg or T: fallback."""
+    """Return path to the GENESIS 1000A-2027 CSV.
+
+    Resolution order:
+      1. cfg.gemeinde_age_csv_path  — explicit config key (highest priority)
+      2. data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv  — local copy
+      3. T: legacy path  — fallback with a warning
+    """
     p = getattr(cfg, "gemeinde_age_csv_path", None)
     if p is not None:
         return Path(p)
+    if _LOCAL_1000A.exists():
+        return _LOCAL_1000A
     if _T_1000A.exists():
+        log.warning(
+            "[gender] GENESIS CSV local copy not found at %s; "
+            "falling back to T: path %s — consider copying to "
+            "'data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv'",
+            _LOCAL_1000A,
+            _T_1000A,
+        )
         return _T_1000A
     raise FileNotFoundError(
-        "1000A-2027_de.csv not found. Expected either cfg.gemeinde_age_csv_path or "
-        f"{_T_1000A}.\n"
+        "GENESIS 1000A-2027 CSV not found. Expected one of:\n"
+        f"  1. cfg.gemeinde_age_csv_path (TOML key [data].gemeinde_age_csv_path)\n"
+        f"  2. {_LOCAL_1000A}\n"
+        f"  3. {_T_1000A}\n"
         "Download from: https://ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027\n"
         "  -> Anpassen -> Gemeinden -> download CSV"
     )

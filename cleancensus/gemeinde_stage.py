@@ -152,18 +152,38 @@ _T_VG250 = Path(
 )
 _VG250_LAYER_DEFAULT = "v_vg250_gem"
 
+# data/raw local copy — resolved at import time relative to this file's package root
+_LOCAL_VG250 = Path(__file__).resolve().parent.parent / "data" / "raw" / "vg250" / "DE_VG250.gpkg"
+
 
 def _resolve_vg250(cfg) -> tuple[Path, str]:
-    """Return (gpkg_path, layer_name) from cfg or T: fallback."""
+    """Return (gpkg_path, layer_name).
+
+    Resolution order:
+      1. cfg.vg250_gpkg_path  — explicit config key (highest priority)
+      2. data/raw/vg250/DE_VG250.gpkg  — local copy under the repo
+      3. T: legacy path  — fallback with a warning
+    """
     gpkg = getattr(cfg, "vg250_gpkg_path", None)
     layer = getattr(cfg, "vg250_gpkg_layer", _VG250_LAYER_DEFAULT)
     if gpkg is None:
-        if _T_VG250.exists():
+        if _LOCAL_VG250.exists():
+            gpkg = _LOCAL_VG250
+        elif _T_VG250.exists():
+            log.warning(
+                "[gemeinde] VG250 local copy not found at %s; "
+                "falling back to T: path %s — consider copying with "
+                "'data/raw/vg250/DE_VG250.gpkg'",
+                _LOCAL_VG250,
+                _T_VG250,
+            )
             gpkg = _T_VG250
         else:
             raise FileNotFoundError(
-                "VG250 GeoPackage not found. Expected either cfg.vg250_gpkg_path or "
-                f"{_T_VG250}"
+                "VG250 GeoPackage not found. Expected one of:\n"
+                f"  1. cfg.vg250_gpkg_path (TOML key [data].vg250_gpkg_path)\n"
+                f"  2. {_LOCAL_VG250}\n"
+                f"  3. {_T_VG250}"
             )
     return Path(gpkg), layer
 

@@ -26,6 +26,8 @@ All paths in the config are resolved relative to the directory that contains the
 | `regiostar_ref` | string (path) | *(auto-discovered)* | Optional | Override the BBSR RegioStaR reference workbook. Default: auto-discovers the BBSR Referenz Gemeinden Gebietsstand 31.12.2022 xlsx in `data/raw/regiostar/`; falls back to the BMDV Gebietsstand2020 file if absent. |
 | `regiostar_sheet` | string | `""` | Optional | Sheet name within the `regiostar_ref` workbook. Leave empty for auto-detection. |
 | `regionaltabellen_xlsx` | string (path) | *(derived)* | Optional | Path to `Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx` for `--gemeinde-controls`. Default: `data/raw/regionaltabellen/Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx`. |
+| `vg250_gpkg_path` | string (path) | *(auto-discovered)* | Optional | Override for the BKG VG250 GeoPackage used by the `gemeinde` stage. Default resolution: (1) this key, (2) `data/raw/vg250/DE_VG250.gpkg`, (3) T: legacy path (with warning). |
+| `gemeinde_age_csv_path` | string (path) | *(auto-discovered)* | Optional | Override for the GENESIS 1000A-2027 CSV used by the `gender` stage. Default resolution: (1) this key, (2) `data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv`, (3) T: legacy path (with warning). |
 
 ### `[harmonize]`
 
@@ -80,14 +82,13 @@ behaviour — the three canonical input files in `data/inputs/` are used directl
 | `regiostar` | `false` | Join 7 BBSR RegioStaR 2022 classification columns via 8-digit AGS | `aggs` output; `regiostar_referenzdatei.xlsx` |
 | `extend` | **`true`** | Harmonize additional topics from the catalog (stage_a 10 km→1 km, stage_b 1 km→100 m) | Prepared input files in `data/inputs/` (or `regiostar` output) |
 
-**External file config keys** (pass these as top-level keys under `[stages]` or as TOML
-string values at the top level — they are read via `getattr(cfg, key, None)` at runtime):
+**External reference file config keys** (set these under `[data]` in the TOML):
 
-| Config key | Stage | Description |
-|---|---|---|
-| `gemeinde_age_csv_path` | `gender` | Path to the GENESIS 1000A-2027 CSV export (population by age and sex at Gemeinde level). Download from [ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027](https://ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027). |
-| `vg250_gpkg_path` | `gemeinde` | Path to BKG VG250 GeoPackage (`DE_VG250.gpkg`, reference date 2022-01-01, EPSG:25832). |
-| `regiostar_ref` | `regiostar` | Path to BBSR `regiostar_referenzdatei.xlsx` (sheet `ReferenzGebietsstand2020`). Default: `data/inputs/regiostar_referenzdatei.xlsx`. |
+| Config key | Stage | Default resolution | Description |
+|---|---|---|---|
+| `vg250_gpkg_path` | `gemeinde` | `data/raw/vg250/DE_VG250.gpkg` (then T: legacy path) | Path to BKG VG250 GeoPackage (`DE_VG250.gpkg`, reference date 2022-01-01, EPSG:25832). Copy from `T:\petre\...\vg250_ebenen_0101\DE_VG250.gpkg`. |
+| `gemeinde_age_csv_path` | `gender` | `data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv` (then T: legacy path) | Path to the GENESIS 1000A-2027 CSV export (population by age and sex at Gemeinde level). Download from [ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027](https://ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027). |
+| `regiostar_ref` | `regiostar` | `data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx` | Path to BBSR RegioStaR reference workbook. Default: auto-discovered in `data/raw/regiostar/`. |
 
 **CLI flags:**
 
@@ -216,10 +217,10 @@ aggs      = true
 regiostar = true
 extend    = true
 
-# Paths to external reference files (required for gemeinde and gender stages):
-# gemeinde_age_csv_path = "data/inputs/1000A-2027_de.csv"
-# vg250_gpkg_path       = "data/inputs/DE_VG250.gpkg"
-# regiostar_ref         = "data/inputs/regiostar_referenzdatei.xlsx"
+# Paths to external reference files (auto-discovered under data/raw/ by default):
+# vg250_gpkg_path         = "data/raw/vg250/DE_VG250.gpkg"
+# gemeinde_age_csv_path   = "data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv"
+# regiostar_ref           = "data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx"
 ```
 
 ---

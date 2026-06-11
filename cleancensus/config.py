@@ -31,6 +31,11 @@ class Config:
     # data/raw/regiostar/. Fall back to the BMDV Gebietsstand2020 file if absent.
     regiostar_ref: Path | None = field(default=None, compare=False)
     regiostar_sheet: str = field(default="", compare=False)
+    # [data] external reference file paths for the gemeinde and gender stages.
+    # Resolution order: (1) config key if set, (2) data/raw/ local copy, (3) T: legacy path.
+    # Both default to None — the stages resolve them via _resolve_vg250 / _resolve_1000a_csv.
+    vg250_gpkg_path: Path | None = field(default=None, compare=False)
+    gemeinde_age_csv_path: Path | None = field(default=None, compare=False)
 
     # canonical input file names (fixed contract)
     @property
@@ -104,14 +109,11 @@ class Config:
 
     @property
     def out_1(self) -> Path:
-        return self.outputs_dir / f"cells_1km_with_binneds_{self.version_tag}.parquet"
+        return self.outputs_dir / f"zensus2022_grid_1km_de_{self.version_tag}.parquet"
 
     @property
     def out_100(self) -> Path:
-        return self.outputs_dir / (
-            "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar_"
-            f"{self.version_tag}.parquet"
-        )
+        return self.outputs_dir / f"zensus2022_grid_100m_de_{self.version_tag}.parquet"
 
 
 # Data-producing stages, in execution order. The first 8 cover the full path from the
@@ -198,6 +200,17 @@ def load_config(path: str | Path) -> Config:
     )
     regiostar_sheet: str = str(data.get("regiostar_sheet", ""))
 
+    # External reference file paths for gemeinde and gender stages.
+    # None means the stage will use the data/raw/ local copy or the T: legacy path.
+    vg250_raw = data.get("vg250_gpkg_path", None)
+    vg250_gpkg_path: Path | None = (
+        (repo_root / vg250_raw).resolve() if vg250_raw is not None else None
+    )
+    gemeinde_csv_raw = data.get("gemeinde_age_csv_path", None)
+    gemeinde_age_csv_path: Path | None = (
+        (repo_root / gemeinde_csv_raw).resolve() if gemeinde_csv_raw is not None else None
+    )
+
     return Config(
         inputs_dir=inputs_dir,
         outputs_dir=outputs_dir,
@@ -213,4 +226,6 @@ def load_config(path: str | Path) -> Config:
         config_path=path,
         regiostar_ref=regiostar_ref,
         regiostar_sheet=regiostar_sheet,
+        vg250_gpkg_path=vg250_gpkg_path,
+        gemeinde_age_csv_path=gemeinde_age_csv_path,
     )

@@ -4,7 +4,7 @@
 [data]
 inputs_dir  = "data/inputs"    # must contain the three canonical input files (see docs/DATA.md)
 outputs_dir = "data/outputs"   # versioned outputs + run manifest land here
-version_tag = "v2"             # suffix for output files, e.g. ..._v2.parquet
+version_tag = "v2"             # suffix for output files, e.g. zensus2022_grid_1km_de_v2.parquet
 # destatis_raw_dir = "data/raw/destatis"  # auto-derived; override only if ZIPs are elsewhere
 # Note: when the corresponding producer stage is enabled (e.g. stages.ages / stages.topics8 /
 # stages.regiostar), the pipeline automatically reads intermediate artifacts from data/work/
@@ -17,6 +17,20 @@ version_tag = "v2"             # suffix for output files, e.g. ..._v2.parquet
 # Uncomment to override:
 # regiostar_ref   = "data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx"
 # regiostar_sheet = "Gemeindereferenz (inkl. Kreise)"  # leave empty for auto-detect
+
+# BKG VG250 GeoPackage for the gemeinde stage.  Default resolution order:
+#   1. vg250_gpkg_path (this key)
+#   2. data/raw/vg250/DE_VG250.gpkg  (local copy — preferred)
+#   3. T:\petre\...\DE_VG250.gpkg    (legacy network path, warns if used)
+# Uncomment to override (only needed if the local copy is in a non-default location):
+# vg250_gpkg_path = "data/raw/vg250/DE_VG250.gpkg"
+
+# GENESIS 1000A-2027 Gemeinde CSV for the gender stage.  Default resolution order:
+#   1. gemeinde_age_csv_path (this key)
+#   2. data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv  (local copy)
+#   3. T:\petre\...\1000A-2027_de.csv  (legacy network path, warns if used)
+# Uncomment to override (only needed if the local copy is in a non-default location):
+# gemeinde_age_csv_path = "data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv"
 
 [harmonize]
 # Choose ONE of the following selectors (or omit both for the MiD-controllable default):
