@@ -483,27 +483,39 @@ row counts for provenance tracking.
 
 ## 📖 Citation
 
-If you use this software or the method it implements, please cite:
+If you use this software or the method it implements, please cite the paper:
+
+> **Petre, F., Bienzeisler, L., & Friedrich, B. (2026).**
+> *A Framework for Harmonizing and Enriching Multi-Scale Census Grids: Application to Germany's 2022 Census Data.*
+> Procedia Computer Science, **280**, 965–970. (ANT 2026 / EDI40)
+
+[![DOI](https://img.shields.io/badge/DOI-10.1016%2Fj.procs.2026.04.122-orange)](https://doi.org/10.1016/j.procs.2026.04.122)
+[![Open Access](https://img.shields.io/badge/access-open-brightgreen)](https://www.sciencedirect.com/science/article/pii/S187705092601135X)
+
+The paper is **open access** — read it on [ScienceDirect](https://www.sciencedirect.com/science/article/pii/S187705092601135X).
+
+> 💡 On GitHub, use the **“Cite this repository”** button (top-right sidebar) — it is generated automatically from [`CITATION.cff`](CITATION.cff) and exports APA / BibTeX in one click.
+
+<details>
+<summary>📋 BibTeX</summary>
 
 ```bibtex
 @article{PETRE2026965,
-title = {A Framework for Harmonizing and Enriching Multi-Scale Census Grids: Application to Germany's 2022 Census Data},
-journal = {Procedia Computer Science},
-volume = {280},
-pages = {965-970},
-year = {2026},
-note = {The 17th International Conference on Ambient Systems, Networks and Technologies Networks (ANT)/ the 9th International Conference on Emerging Data and Industry 4.0 (EDI40)},
-issn = {1877-0509},
-doi = {https://doi.org/10.1016/j.procs.2026.04.122},
-url = {https://www.sciencedirect.com/science/article/pii/S187705092601135X},
-author = {Felix Petre and Lasse Bienzeisler and Bernhard Friedrich},
-keywords = {census, iterative proportional fitting, trust blending, synthetic population, grid statistics}
+  title   = {A Framework for Harmonizing and Enriching Multi-Scale Census Grids: Application to Germany's 2022 Census Data},
+  author  = {Petre, Felix and Bienzeisler, Lasse and Friedrich, Bernhard},
+  journal = {Procedia Computer Science},
+  volume  = {280},
+  pages   = {965--970},
+  year    = {2026},
+  doi     = {10.1016/j.procs.2026.04.122},
+  issn    = {1877-0509},
+  url     = {https://www.sciencedirect.com/science/article/pii/S187705092601135X},
+  note    = {17th Int. Conf. on Ambient Systems, Networks and Technologies (ANT) / 9th Int. Conf. on Emerging Data and Industry 4.0 (EDI40)},
+  keywords = {census, iterative proportional fitting, trust blending, synthetic population, grid statistics}
 }
 ```
 
-The paper is **open access** at <https://www.sciencedirect.com/science/article/pii/S187705092601135X>.
-
-A [`CITATION.cff`](CITATION.cff) file is included for automated citation tooling.
+</details>
 
 ---
 
