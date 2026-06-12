@@ -13,7 +13,7 @@ abstract: >
   proportional fitting (IPF) and a hierarchical downscaling algorithm.
 authors:
   - family-names: Petre
-    given-names: Flavius
+    given-names: Felix
   - family-names: Bienzeisler
     given-names: Lasse
   - family-names: Friedrich
@@ -26,7 +26,7 @@ preferred-citation:
     Application to Germany's 2022 Census Data
   authors:
     - family-names: Petre
-      given-names: Flavius
+      given-names: Felix
     - family-names: Bienzeisler
       given-names: Lasse
     - family-names: Friedrich
@@ -37,3 +37,8 @@ preferred-citation:
   end: 970
   year: 2026
   doi: "10.1016/j.procs.2026.04.122"
+  url: "https://www.sciencedirect.com/science/article/pii/S187705092601135X"
+  notes: >
+    The 17th International Conference on Ambient Systems, Networks and Technologies
+    (ANT) / the 9th International Conference on Emerging Data and Industry 4.0 (EDI40).
+    Open access at https://www.sciencedirect.com/science/article/pii/S187705092601135X
