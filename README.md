@@ -14,27 +14,27 @@ tables for synthetic-population generation.
 ```mermaid
 flowchart LR
     subgraph RI["raw ingest"]
-        M["merge\nz22data parquets\n→ wide tables\n10 km / 1 km / 100 m"]
-        T["totals\ncollapse POP_TOTAL\ncross-level adjust"]
-        A["ages\nAGE_0..100\ntrust-mixed IPF"]
+        M["merge<br/>z22data parquets<br/>→ wide tables<br/>10 km / 1 km / 100 m"]
+        T["totals<br/>collapse POP_TOTAL<br/>cross-level adjust"]
+        A["ages<br/>AGE_0..100<br/>trust-mixed IPF"]
     end
     subgraph H["harmonize"]
-        G4["gemeinde\nVG250 spatial join\nARS / Land / Kreis"]
-        G5["gender\nM-F split\n36-row backfill"]
-        T8["topics8\n8 original topics\n10 km → 1 km → 100 m"]
-        AG["aggs\ndecade-binned\ngendered ages"]
-        RS["regiostar\nBBSR RegioStaR 2022\nnull-rim 5 188 → 633"]
-        EX["extend\nadditional topics\nstage_a 10 km→1 km\nstage_b 1 km→100 m"]
+        G4["gemeinde<br/>VG250 spatial join<br/>ARS / Land / Kreis"]
+        G5["gender<br/>M-F split<br/>36-row backfill"]
+        T8["topics8<br/>8 original topics<br/>10 km → 1 km → 100 m"]
+        AG["aggs<br/>decade-binned<br/>gendered ages"]
+        RS["regiostar<br/>BBSR RegioStaR 2022<br/>null-rim 5 188 → 633"]
+        EX["extend<br/>additional topics<br/>stage_a 10 km→1 km<br/>stage_b 1 km→100 m"]
     end
     subgraph DV["derive & validate"]
-        TEN["tenure\nowner / renter HH\nfrom Eigentuemerquote"]
-        VAC["vacancy\noccupied / vacant Whg\nfrom Leerstandsquote"]
-        SAN["sanity\n0 failures\n5 invariants"]
+        TEN["tenure<br/>owner / renter HH<br/>from Eigentuemerquote"]
+        VAC["vacancy<br/>occupied / vacant Whg<br/>from Leerstandsquote"]
+        SAN["sanity<br/>0 failures<br/>5 invariants"]
     end
     M --> T --> A --> G4 --> G5 --> T8 --> AG --> RS --> EX
     EX --> TEN --> VAC --> SAN
-    SAN --> O1["zensus2022_grid_1km_de_v2.parquet\n212 758 cells"]
-    SAN --> O100["zensus2022_grid_100m_de_v2.parquet\n3 148 482 cells"]
+    SAN --> O1["zensus2022_grid_1km_de_v2.parquet<br/>212 758 cells"]
+    SAN --> O100["zensus2022_grid_100m_de_v2.parquet<br/>3 148 482 cells"]
 ```
 
 ---
@@ -145,7 +145,7 @@ Two external files are required for the `gemeinde` and `gender` stages:
 
 ## 🗂️ Data universes
 
-The Zensus 2022 grid distributes attributes across **five distinct universes**. Topics from
+The Zensus 2022 grid distributes attributes across **six distinct universes**. Topics from
 different universes cannot be anchored against each other — the pipeline enforces this rule.
 
 | Universe | National total | Example topics |
@@ -244,26 +244,26 @@ Topics = `["Whg_Gebaeudetyp", "HH_Seniorenstatus"]`, `derived_tenure = true`.
 ```mermaid
 flowchart TD
     subgraph CTRL["controls — PopulationSim margins"]
-        C1["age × sex bins\nfrom ages + gender stages"]
-        C2["HH size categories\nHaushaltsgroesse_adj"]
-        C3["building type (3-cat)\nvia dwelling Gebaeudetyp"]
-        C4["tenure\nowner / renter HH"]
-        C5["senior status\nHH_Seniorenstatus_adj"]
-        C6["Kreis employment share\nGemeinde controls"]
+        C1["age × sex bins<br/>from ages + gender stages"]
+        C2["HH size categories<br/>Haushaltsgroesse_adj"]
+        C3["building type (3-cat)<br/>via dwelling Gebaeudetyp"]
+        C4["tenure<br/>owner / renter HH"]
+        C5["senior status<br/>HH_Seniorenstatus_adj"]
+        C6["Kreis employment share<br/>Gemeinde controls"]
     end
     subgraph HO["handoff — structural counts"]
-        H1["building counts\nGeb_Gebaeudetyp"]
-        H2["dwellings per building\nGeb_AnzahlWohnungen"]
-        H3["vacancy\noccupied / vacant Whg"]
+        H1["building counts<br/>Geb_Gebaeudetyp"]
+        H2["dwellings per building<br/>Geb_AnzahlWohnungen"]
+        H3["vacancy<br/>occupied / vacant Whg"]
     end
     subgraph EN["enrichment — attributes"]
-        E1["rent / floor area\nRaeume, Wohnflaeche"]
-        E2["heating type\nWhg_Heizungsart"]
-        E3["construction year\nGeb_Baujahr"]
+        E1["rent / floor area<br/>Raeume, Wohnflaeche"]
+        E2["heating type<br/>Whg_Heizungsart"]
+        E3["construction year<br/>Geb_Baujahr"]
     end
-    CTRL -->|"seed PopulationSim\nIPF"| OUT["synthetic population"]
-    HO -->|"building stock\nmodel"| OUT
-    EN -->|"housing attribute\nimputation"| OUT
+    CTRL -->|"seed PopulationSim<br/>IPF"| OUT["synthetic population"]
+    HO -->|"building stock<br/>model"| OUT
+    EN -->|"housing attribute<br/>imputation"| OUT
 ```
 
 ---
