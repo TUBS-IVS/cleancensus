@@ -234,10 +234,22 @@ def run_aggs(cfg: Config) -> None:
 
         aggs_df = _compute_aggs(df)
 
-        # Append agg columns to the existing table
+        # Add agg columns. M_TOTAL/F_TOTAL already exist (written by the gender
+        # stage and carried through topics8) — OVERWRITE them in place rather than
+        # appending, which would create duplicate field names and break the
+        # downstream pyarrow dataset reader (extend stage_b).
         for col in aggs_df.columns:
             arr = pa.array(aggs_df[col].to_numpy(dtype="float64"))
-            tbl = tbl.append_column(col, arr)
+            if col in tbl.schema.names:
+                tbl = tbl.set_column(tbl.schema.get_field_index(col), col, arr)
+            else:
+                tbl = tbl.append_column(col, arr)
+
+        # fail-fast: never write a table with duplicate columns
+        if len(set(tbl.schema.names)) != len(tbl.schema.names):
+            from collections import Counter
+            dups = [n for n, c in Counter(tbl.schema.names).items() if c > 1]
+            raise ValueError(f"[aggs] duplicate columns after build: {dups}")
 
         if writer is None:
             writer = pq.ParquetWriter(out_path, tbl.schema, compression="snappy")
