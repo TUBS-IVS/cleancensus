@@ -29,6 +29,47 @@ DOWNSCALE_KW = dict(
 )
 
 
+def ensure_no_dup_columns(path):
+    """Return a parquet path guaranteed free of duplicate column names.
+
+    pyarrow's dataset reader raises ``ArrowInvalid: Can't unify schema with
+    duplicate field names``. An upstream stage written by older code can leave a
+    duplicate column (e.g. M_TOTAL/F_TOTAL appended twice). If ``path`` has
+    duplicates, stream a deduplicated copy (keep the first occurrence of each
+    name) next to it and return that; otherwise return ``path`` unchanged.
+    """
+    from collections import Counter
+    from pathlib import Path
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    path = Path(path)
+    pf = pq.ParquetFile(path)
+    names = pf.schema_arrow.names
+    dups = [n for n, c in Counter(names).items() if c > 1]
+    if not dups:
+        return path
+
+    keep_idx, seen = [], set()
+    for i, n in enumerate(names):
+        if n not in seen:
+            seen.add(n)
+            keep_idx.append(i)
+    out = path.with_name(path.stem + ".deduped.parquet")
+    print(f"[stage_b] source has duplicate columns {dups}; "
+          f"writing deduplicated copy -> {out.name}")
+    writer = None
+    for batch in pf.iter_batches(batch_size=1_000_000):
+        tbl = pa.Table.from_batches([batch]).select(keep_idx)
+        if writer is None:
+            writer = pq.ParquetWriter(out, tbl.schema, compression="snappy")
+        writer.write_table(tbl)
+    if writer is not None:
+        writer.close()
+    return out
+
+
 def load_frame(path) -> "pd.DataFrame":
     """Load a DataFrame from path, dispatching on file suffix.
 
@@ -213,7 +254,8 @@ def run_stage_b(cfg) -> None:
         return
 
     # National mode: stream-append to the full file
-    dataset = ds.dataset(cfg.resolved_path_100, format="parquet")
+    base_100 = ensure_no_dup_columns(cfg.resolved_path_100)
+    dataset = ds.dataset(base_100, format="parquet")
     keep_cols = list(dataset.schema.names)
 
     new_cols = []
