@@ -11,6 +11,10 @@ tables for synthetic-population generation.
 [![Paper](https://img.shields.io/badge/paper-doi%3A10.1016%2Fj.procs.2026.04.122-orange)](https://doi.org/10.1016/j.procs.2026.04.122)
 [![Data](https://img.shields.io/badge/data%20licence-dl--de%2Fby--2--0-blue)](#data)
 
+![Germany at 100 m: population density and home-ownership rate, computed by this pipeline](docs/assets/hero_grids.png)
+
+*3.15 million 100 m cells, harmonized by cleancensus*
+
 ```mermaid
 flowchart LR
     subgraph RI["raw ingest"]
@@ -239,59 +243,18 @@ Topics = `["Whg_Gebaeudetyp", "HH_Seniorenstatus"]`, `derived_tenure = true`.
 
 ---
 
-## 🗺️ Census attribute roles
+## 🗂️ Attribute roles and topic catalog
 
-```mermaid
-flowchart TD
-    subgraph CTRL["controls — PopulationSim margins"]
-        C1["age × sex bins<br/>from ages + gender stages"]
-        C2["HH size categories<br/>Haushaltsgroesse_adj"]
-        C3["building type (3-cat)<br/>via dwelling Gebaeudetyp"]
-        C4["tenure<br/>owner / renter HH"]
-        C5["senior status<br/>HH_Seniorenstatus_adj"]
-        C6["Kreis employment share<br/>Gemeinde controls"]
-    end
-    subgraph HO["handoff — structural counts"]
-        H1["building counts<br/>Geb_Gebaeudetyp"]
-        H2["dwellings per building<br/>Geb_AnzahlWohnungen"]
-        H3["vacancy<br/>occupied / vacant Whg"]
-    end
-    subgraph EN["enrichment — attributes"]
-        E1["rent / floor area<br/>Raeume, Wohnflaeche"]
-        E2["heating type<br/>Whg_Heizungsart"]
-        E3["construction year<br/>Geb_Baujahr"]
-    end
-    CTRL -->|"seed PopulationSim<br/>IPF"| OUT["synthetic population"]
-    HO -->|"building stock<br/>model"| OUT
-    EN -->|"housing attribute<br/>imputation"| OUT
-```
+Census attributes produced by this pipeline serve three roles in downstream population
+synthesis: **controls** (IPF margin variables seeding PopulationSim — age × sex bins,
+HH size, building type, tenure, senior status, Gemeinde-level employment share),
+**handoff** (structural counts for building-stock models — Geb_Gebaeudetyp,
+Geb_AnzahlWohnungen, vacancy), and **enrichment** (housing-attribute imputation —
+Raeume, Wohnflaeche, Whg_Heizungsart, Geb_Baujahr).
 
----
-
-## 📚 Topic catalog
-
-14 additional topics across 3 tiers, controlled by `[harmonize].topics` or `[harmonize].tiers`:
-
-| Tier | Topic name | Categories | Universe | MiD default |
-|---|---|---|---|---|
-| 1 | `Geb_Gebaeudetyp` | 10 | Gebäude | — |
-| 1 | `Geb_AnzahlWohnungen` | 5 | Gebäude | — |
-| 1 | `Geb_Baujahr` | 8 | Gebäude | — |
-| 1 | `Geb_Energietraeger` | 9 | Gebäude | — |
-| 1 | `Whg_Gebaeudetyp` | 10 | Wohnungen B | ✓ |
-| 1 | `Whg_Heizungsart` | 6 | Wohnungen B | — |
-| 2 | `HH_Seniorenstatus` | 3 | Haushalte | ✓ |
-| 2 | `HH_Familientyp` | 5 | Haushalte | — |
-| 2 | `Pers_Staatsangehoerigkeit` | 2 | Personen | — |
-| 3 | `Pers_StaatsangGruppen` | 6 | Personen | — |
-| 3 | `Pers_ZahlStaatsang` | 4 | Personen | — |
-| 3 | `Pers_Religion` | 3 | Personen | — |
-| 3 | `Fam_Groesse` | 5 | Familien | — |
-| 3 | `Fam_TypNachKindern` | 13 | Familien | — |
-
-The MiD default (`["Whg_Gebaeudetyp", "HH_Seniorenstatus"]`) is the set of Zensus attributes
-that the MiD 2023 household travel survey can directly serve as PopulationSim controls for:
-building type via the geocoded `haustyp` variable and senior status via household member ages.
+The full **14-topic catalog** (3 tiers, 6 data universes) and the complete attribute-role
+diagram live in [`docs/DATA.md`](docs/DATA.md). Gemeinde-level control attributes
+(employment status, education) are documented in [`docs/GEMEINDE_CONTROLS.md`](docs/GEMEINDE_CONTROLS.md).
 
 ---
 
@@ -393,21 +356,48 @@ correctly (verified by the MFH_13+ discriminator); a regression test guards this
 See [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) for the full investigation.
 Credit: Jonas Lieth / z22data.
 
-See [`docs/RAW_DOWNLOAD.md`](docs/RAW_DOWNLOAD.md) for download instructions.
+### Getting the data
+
+| # | What | Where from | Save as (exact path) | Needed for |
+|---|---|---|---|---|
+| 1 | **z22data parquets** | Automatic — merge stage downloads from [github.com/JsLth/z22data](https://github.com/JsLth/z22data) | `data/raw/z22/{level}/` | `stages.merge = true` |
+| 2 | **Destatis supplement ZIPs** (7 files, one-time manual) | [www.zensus2022.de → Ergebnisse → Gitterzellenbasierte Ergebnisse](https://www.zensus2022.de/DE/Ergebnisse-des-Zensus/gitterzellen.html) | `data/raw/destatis/<filename>.zip` (unchanged) | `stages.merge = true` |
+| 3 | **BBSR RegioStaR reference** | BBSR Referenztabellen → "Referenz Gebietsstand 31.12.2022" workbook ([bbsr.bund.de](https://www.bbsr.bund.de/BBSR/DE/forschung/raumbeobachtung/Raumabgrenzungen/deutschland/gemeinden/Raumtypen2022/raumtypen2022.html)) | `data/raw/regiostar/bbsr-referenz-gebietsstand-2022.xlsx` | `stages.regiostar = true` |
+| 4 | **BKG VG250 GeoPackage** (full mode only) | [gdz.bkg.bund.de](https://gdz.bkg.bund.de/index.php/default/open-data/verwaltungsgebiete-1-250-000-mit-einwohnerzahlen-stand-31-12-vg250-ew-31-12.html) — VG250 GeoPackage, Gebietsstand 01.01.2022, EPSG:25832, dl-de/by-2-0 | `data/raw/vg250/DE_VG250.gpkg` | `stages.gemeinde = true` |
+| 5 | **GENESIS 1000A-2027** (full mode only) | [ergebnisse.zensus2022.de](https://ergebnisse.zensus2022.de/datenbank/online/table/1000A-2027) → alle Gemeinden → CSV download | `data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv` | `stages.gender = true` |
+
+**Destatis supplement ZIP filenames** (step 2 — save exactly as listed below into `data/raw/destatis/`):
+
+```
+Seniorenstatus_eines_privaten_Haushalts.zip
+Typ_des_privaren_Haushalts_Lebensform.zip
+Typ_des_privaten_Haushalts_Familien.zip
+Religion.zip
+Zahl_der_Staatsangehoerigkeiten.zip
+Groesse_der_Kernfamilie.zip
+Typ_der_Kernfamilie_nach_Kindern.zip
+```
+
+See [`docs/RAW_DOWNLOAD.md`](docs/RAW_DOWNLOAD.md) for detailed download instructions.
 
 ### Pipeline inputs (prepared mode)
 
-Place these three files in `data/inputs/`. They are intermediates produced by stages 1–8,
-which are now fully implemented and reproducible — the archived notebooks are superseded.
-To reproduce from scratch, enable all stages (see Quickstart (b) above). To obtain the
-prepared files directly, contact the authors (see [`CITATION.cff`](CITATION.cff)); publication
-on a data archive (e.g. Zenodo) is planned.
+Place these three canonical input files in `data/inputs/` and run `uv run cleancensus --config config.example.toml`.
+Only the **extend**, **tenure** (optional), **vacancy** (optional), and **sanity** stages run — the raw→prepared chain is skipped.
+A national run with the 2 default topics + tenure takes approximately **2–4 hours** on a desktop CPU; peak RAM ~4–6 GB.
 
 | File | Shape | Content |
 |---|---|---|
-| `df10_with_single_years.pickle` | 3 824 × 346 | 10 km grid with merged topic tables + single-year age columns AGE_0..100 |
-| `cells_1km_with_binneds.parquet` | 212 758 × 256 | 1 km cells with harmonized 8-topic result and binned age/gender columns |
-| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` | 3 148 482 × 570 | Full national 100 m table (~7.7 GB); age/gender, topic columns, RegioStaR classification, `is_orphan` flag |
+| `zensus2022_grid_10km_de_prepared.parquet` | 3 824 × 346 | 10 km grid with merged topic tables + single-year age columns AGE_0..100 |
+| `zensus2022_grid_1km_de_prepared.parquet` | 212 758 × 256 | 1 km cells with harmonized 8-topic result and binned age/gender columns |
+| `zensus2022_grid_100m_de_prepared.parquet` | 3 148 482 × 570 | Full national 100 m table (~7.7 GB); age/gender, topic columns, RegioStaR classification, `is_orphan` flag |
+
+> Legacy notebook-era file names (`df10_with_single_years.pickle`, `cells_1km_with_binneds.parquet`,
+> `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet`) are still
+> accepted as fallback when the canonical names are not present.
+
+To obtain the prepared files directly, contact the authors (see [`CITATION.cff`](CITATION.cff));
+publication on a data archive (e.g. Zenodo) is planned. To reproduce from scratch, enable all stages (see Quickstart (b) above).
 
 **Suppression:** `fillna(0)` is applied to all frames — a zero in a category column is
 indistinguishable from a disclosure-suppressed zero. `Eigentuemerquote == 0` always means
@@ -486,17 +476,22 @@ row counts for provenance tracking.
 If you use this software or the method it implements, please cite:
 
 ```bibtex
-@article{petre2026framework,
-  author    = {Petre, Flavius and Bienzeisler, Lasse and Friedrich, Bernhard},
-  title     = {A Framework for Harmonizing and Enriching Multi-Scale Census Grids:
-               Application to Germany's 2022 Census Data},
-  journal   = {Procedia Computer Science},
-  volume    = {280},
-  pages     = {965--970},
-  year      = {2026},
-  doi       = {10.1016/j.procs.2026.04.122},
+@article{PETRE2026965,
+title = {A Framework for Harmonizing and Enriching Multi-Scale Census Grids: Application to Germany's 2022 Census Data},
+journal = {Procedia Computer Science},
+volume = {280},
+pages = {965-970},
+year = {2026},
+note = {The 17th International Conference on Ambient Systems, Networks and Technologies Networks (ANT)/ the 9th International Conference on Emerging Data and Industry 4.0 (EDI40)},
+issn = {1877-0509},
+doi = {https://doi.org/10.1016/j.procs.2026.04.122},
+url = {https://www.sciencedirect.com/science/article/pii/S187705092601135X},
+author = {Felix Petre and Lasse Bienzeisler and Bernhard Friedrich},
+keywords = {census, iterative proportional fitting, trust blending, synthetic population, grid statistics}
 }
 ```
+
+The paper is **open access** at <https://www.sciencedirect.com/science/article/pii/S187705092601135X>.
 
 A [`CITATION.cff`](CITATION.cff) file is included for automated citation tooling.
 

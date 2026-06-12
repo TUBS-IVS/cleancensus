@@ -37,18 +37,62 @@ class Config:
     vg250_gpkg_path: Path | None = field(default=None, compare=False)
     gemeinde_age_csv_path: Path | None = field(default=None, compare=False)
 
-    # canonical input file names (fixed contract)
+    # canonical input file names — prefer new clean names, fall back to legacy names.
     @property
     def path_10(self) -> Path:
-        return self.inputs_dir / "df10_with_single_years.pickle"
+        """Return the 10 km input path.
+
+        Preference order (first that exists wins; if neither exists, return the
+        canonical clean name so downstream code gets a clear missing-file error):
+          1. zensus2022_grid_10km_de_prepared.parquet
+          2. zensus2022_grid_10km_de_prepared.pickle  (pickle fallback for parquet)
+          3. df10_with_single_years.pickle             (legacy notebook-era name)
+        """
+        for name in (
+            "zensus2022_grid_10km_de_prepared.parquet",
+            "zensus2022_grid_10km_de_prepared.pickle",
+            "df10_with_single_years.pickle",
+        ):
+            p = self.inputs_dir / name
+            if p.exists():
+                return p
+        # Neither exists — return canonical clean name (clear error on open)
+        return self.inputs_dir / "zensus2022_grid_10km_de_prepared.parquet"
 
     @property
     def path_1(self) -> Path:
-        return self.inputs_dir / "cells_1km_with_binneds.parquet"
+        """Return the 1 km input path.
+
+        Preference order:
+          1. zensus2022_grid_1km_de_prepared.parquet
+          2. cells_1km_with_binneds.parquet  (legacy notebook-era name)
+        """
+        for name in (
+            "zensus2022_grid_1km_de_prepared.parquet",
+            "cells_1km_with_binneds.parquet",
+        ):
+            p = self.inputs_dir / name
+            if p.exists():
+                return p
+        return self.inputs_dir / "zensus2022_grid_1km_de_prepared.parquet"
 
     @property
     def path_100(self) -> Path:
-        return self.inputs_dir / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+        """Return the 100 m input path.
+
+        Preference order:
+          1. zensus2022_grid_100m_de_prepared.parquet
+          2. cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet
+             (legacy notebook-era name)
+        """
+        for name in (
+            "zensus2022_grid_100m_de_prepared.parquet",
+            "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet",
+        ):
+            p = self.inputs_dir / name
+            if p.exists():
+                return p
+        return self.inputs_dir / "zensus2022_grid_100m_de_prepared.parquet"
 
     @property
     def work_dir(self) -> Path:

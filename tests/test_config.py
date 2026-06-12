@@ -126,20 +126,137 @@ def _write_with_stages(tmp_path, stages_toml: str = "") -> object:
     return _write(tmp_path, body)
 
 
+# ---------------------------------------------------------------------------
+# path_10 / path_1 / path_100 — canonical name preference + legacy fallback
+# ---------------------------------------------------------------------------
+
+def test_path_10_prefers_canonical_parquet(tmp_path):
+    """path_10 returns canonical .parquet name when it exists."""
+    cfg = load_config(_write(tmp_path, ""))
+    canonical = cfg.inputs_dir / "zensus2022_grid_10km_de_prepared.parquet"
+    canonical.parent.mkdir(parents=True, exist_ok=True)
+    canonical.touch()
+    assert cfg.path_10 == canonical
+    assert cfg.path_10.name == "zensus2022_grid_10km_de_prepared.parquet"
+
+
+def test_path_10_legacy_fallback(tmp_path):
+    """path_10 falls back to legacy pickle when canonical names absent."""
+    cfg = load_config(_write(tmp_path, ""))
+    legacy = cfg.inputs_dir / "df10_with_single_years.pickle"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.touch()
+    assert cfg.path_10 == legacy
+    assert cfg.path_10.suffix == ".pickle"
+
+
+def test_path_10_canonical_preferred_over_legacy(tmp_path):
+    """path_10 prefers canonical parquet even when legacy file also exists."""
+    cfg = load_config(_write(tmp_path, ""))
+    cfg.inputs_dir.mkdir(parents=True, exist_ok=True)
+    canonical = cfg.inputs_dir / "zensus2022_grid_10km_de_prepared.parquet"
+    legacy = cfg.inputs_dir / "df10_with_single_years.pickle"
+    canonical.touch()
+    legacy.touch()
+    assert cfg.path_10 == canonical
+
+
+def test_path_10_no_file_returns_canonical(tmp_path):
+    """path_10 returns canonical name when neither file exists (clear missing-file error)."""
+    cfg = load_config(_write(tmp_path, ""))
+    assert cfg.path_10.name == "zensus2022_grid_10km_de_prepared.parquet"
+
+
+def test_path_1_prefers_canonical(tmp_path):
+    """path_1 returns canonical parquet when it exists."""
+    cfg = load_config(_write(tmp_path, ""))
+    canonical = cfg.inputs_dir / "zensus2022_grid_1km_de_prepared.parquet"
+    canonical.parent.mkdir(parents=True, exist_ok=True)
+    canonical.touch()
+    assert cfg.path_1 == canonical
+
+
+def test_path_1_legacy_fallback(tmp_path):
+    """path_1 falls back to legacy name when canonical absent."""
+    cfg = load_config(_write(tmp_path, ""))
+    legacy = cfg.inputs_dir / "cells_1km_with_binneds.parquet"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.touch()
+    assert cfg.path_1 == legacy
+    assert "cells_1km_with_binneds" in cfg.path_1.name
+
+
+def test_path_1_canonical_preferred_over_legacy(tmp_path):
+    """path_1 prefers canonical even when legacy also exists."""
+    cfg = load_config(_write(tmp_path, ""))
+    cfg.inputs_dir.mkdir(parents=True, exist_ok=True)
+    canonical = cfg.inputs_dir / "zensus2022_grid_1km_de_prepared.parquet"
+    legacy = cfg.inputs_dir / "cells_1km_with_binneds.parquet"
+    canonical.touch()
+    legacy.touch()
+    assert cfg.path_1 == canonical
+
+
+def test_path_100_prefers_canonical(tmp_path):
+    """path_100 returns canonical parquet when it exists."""
+    cfg = load_config(_write(tmp_path, ""))
+    canonical = cfg.inputs_dir / "zensus2022_grid_100m_de_prepared.parquet"
+    canonical.parent.mkdir(parents=True, exist_ok=True)
+    canonical.touch()
+    assert cfg.path_100 == canonical
+
+
+def test_path_100_legacy_fallback(tmp_path):
+    """path_100 falls back to legacy name when canonical absent."""
+    cfg = load_config(_write(tmp_path, ""))
+    legacy = (
+        cfg.inputs_dir
+        / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+    )
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.touch()
+    assert cfg.path_100 == legacy
+    assert "regiostar" in cfg.path_100.name
+
+
+def test_path_100_canonical_preferred_over_legacy(tmp_path):
+    """path_100 prefers canonical even when legacy also exists."""
+    cfg = load_config(_write(tmp_path, ""))
+    cfg.inputs_dir.mkdir(parents=True, exist_ok=True)
+    canonical = cfg.inputs_dir / "zensus2022_grid_100m_de_prepared.parquet"
+    legacy = (
+        cfg.inputs_dir
+        / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+    )
+    canonical.touch()
+    legacy.touch()
+    assert cfg.path_100 == canonical
+
+
 # --- resolved_path_10 ---
 
 def test_resolved_path_10_fallback(tmp_path):
-    """Stage 'ages' disabled (default) -> resolved_path_10 returns inputs_dir pickle."""
+    """Stage 'ages' disabled (default) -> resolved_path_10 returns path_10 (inputs_dir)."""
     cfg = load_config(_write(tmp_path, ""))
-    # stage 'ages' is off by default
+    # stage 'ages' is off by default; no files exist -> canonical name returned
     assert not cfg.stages["ages"]
     assert cfg.resolved_path_10 == cfg.path_10
+    assert cfg.resolved_path_10.name == "zensus2022_grid_10km_de_prepared.parquet"
+
+
+def test_resolved_path_10_legacy_fallback_via_resolved(tmp_path):
+    """resolved_path_10 picks up legacy file when canonical absent (stage 'ages' off)."""
+    cfg = load_config(_write(tmp_path, ""))
+    legacy = cfg.inputs_dir / "df10_with_single_years.pickle"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.touch()
+    assert not cfg.stages["ages"]
+    assert cfg.resolved_path_10 == legacy
     assert cfg.resolved_path_10.suffix == ".pickle"
 
 
 def test_resolved_path_10_prefers_work_when_stage_enabled(tmp_path):
     """Stage 'ages' enabled + work_dir artifact present -> resolved_path_10 returns work_dir path."""
-    # Create the work_dir artifact (touch a dummy file)
     cfg = load_config(_write(tmp_path, """
         [stages]
         ages = true
@@ -160,16 +277,28 @@ def test_resolved_path_10_ignores_work_when_stage_disabled(tmp_path):
     work_artifact.parent.mkdir(parents=True, exist_ok=True)
     work_artifact.touch()
     assert not cfg.stages["ages"]
-    assert cfg.resolved_path_10 == cfg.path_10  # falls back to inputs_dir pickle
+    assert cfg.resolved_path_10 == cfg.path_10  # falls back to inputs_dir path
 
 
 # --- resolved_path_1 ---
 
 def test_resolved_path_1_fallback(tmp_path):
-    """Stage 'topics8' disabled (default) -> resolved_path_1 returns inputs_dir parquet."""
+    """Stage 'topics8' disabled (default) -> resolved_path_1 returns path_1 (inputs_dir)."""
     cfg = load_config(_write(tmp_path, ""))
     assert not cfg.stages["topics8"]
     assert cfg.resolved_path_1 == cfg.path_1
+    # When no file exists, returns canonical name
+    assert cfg.resolved_path_1.name == "zensus2022_grid_1km_de_prepared.parquet"
+
+
+def test_resolved_path_1_legacy_fallback_via_resolved(tmp_path):
+    """resolved_path_1 picks up legacy file when canonical absent (stage 'topics8' off)."""
+    cfg = load_config(_write(tmp_path, ""))
+    legacy = cfg.inputs_dir / "cells_1km_with_binneds.parquet"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.touch()
+    assert not cfg.stages["topics8"]
+    assert cfg.resolved_path_1 == legacy
     assert "cells_1km_with_binneds" in cfg.resolved_path_1.name
 
 
@@ -199,10 +328,25 @@ def test_resolved_path_1_ignores_work_when_stage_disabled(tmp_path):
 # --- resolved_path_100 ---
 
 def test_resolved_path_100_fallback(tmp_path):
-    """Stage 'regiostar' disabled (default) -> resolved_path_100 returns inputs_dir parquet."""
+    """Stage 'regiostar' disabled (default) -> resolved_path_100 returns path_100 (inputs_dir)."""
     cfg = load_config(_write(tmp_path, ""))
     assert not cfg.stages["regiostar"]
     assert cfg.resolved_path_100 == cfg.path_100
+    # When no file exists, returns canonical name
+    assert cfg.resolved_path_100.name == "zensus2022_grid_100m_de_prepared.parquet"
+
+
+def test_resolved_path_100_legacy_fallback_via_resolved(tmp_path):
+    """resolved_path_100 picks up legacy file when canonical absent (stage 'regiostar' off)."""
+    cfg = load_config(_write(tmp_path, ""))
+    legacy = (
+        cfg.inputs_dir
+        / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+    )
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.touch()
+    assert not cfg.stages["regiostar"]
+    assert cfg.resolved_path_100 == legacy
     assert "regiostar" in cfg.resolved_path_100.name
 
 
