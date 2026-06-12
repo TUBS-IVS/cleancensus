@@ -152,8 +152,9 @@ def main():
     ax2 = axes[1]
     ax2.set_facecolor(BG)
 
+    # Eigentuemerquote is ALREADY in percent (0-100) — do not rescale.
     im2 = ax2.imshow(
-        eiq_grid * 100,  # convert fraction to percent
+        eiq_grid,
         origin="lower",
         extent=extent,
         vmin=0, vmax=100,
@@ -161,7 +162,7 @@ def main():
         aspect="equal",
         interpolation="nearest",
     )
-    ax2.set_title("Home-ownership rate (%)",
+    ax2.set_title("Home-ownership rate (%) — household-weighted, 1 km bins",
                   color=TITLE_COLOR, fontsize=13, pad=8)
     ax2.axis("off")
     cb2 = fig.colorbar(im2, ax=ax2, fraction=0.03, pad=0.01, shrink=0.7)
