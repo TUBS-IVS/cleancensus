@@ -72,6 +72,14 @@ total at every resolution.
 
 ---
 
+## 🧭 What the output looks like
+
+![Six computed attributes at 100 m resolution — Braunschweig region (50 × 50 km)](docs/assets/attribute_gallery.png)
+
+*Six attributes computed by the pipeline for the Braunschweig region (50 × 50 km window, 100 m cells). Every panel is derived or harmonized end-to-end: gender split from GENESIS per-Gemeinde shares (panel 1), senior-household status from Seniorenstatus harmonization (panel 2), dwelling-type distribution from Wohnung_Gebaeudetyp_Groesse harmonization (panel 3), tenure from the derived Eigentuemerquote stage (panel 4), vacancy from the derived Leerstandsquote stage (panel 5), and mean household size from harmonized totals (panel 6). Any region can be rendered via `python tools/make_attribute_gallery.py --window-ars <ARS5>` (default: 03101 = Braunschweig).*
+
+---
+
 ## ⚡ Quickstart
 
 ```bash
@@ -168,7 +176,8 @@ different universes cannot be anchored against each other — the pipeline enfor
 
 ## 📊 Validated reference results
 
-All raw→prepared stages are **equivalence-gated** against the notebook-era T: drive artifacts.
+All raw→prepared stages are **equivalence-gated** against the reference implementation
+(archived in `notebooks_archive/` for provenance).
 Per-stage gates all passed; the full-chain national E2E run is in final validation.
 
 ### Gate scoreboard
@@ -454,14 +463,15 @@ crosswalks, geography notes, and the overspecification warning.
 
 ---
 
-## 📝 Reproducibility
+## 📝 Validation & provenance
 
-The pipeline is designed around two principles:
+The pipeline applies two quality-assurance methods:
 
-**Equivalence gates:** every ported stage produces output that matches the notebook-era T:
-drive artifacts to within float32 noise or better. Gate reports in `docs/` record exact
+**Equivalence gates:** every pipeline stage is gated against a reference implementation
+(see [Validated reference results](#-validated-reference-results)). Each gate records exact
 match counts, max absolute differences, and any documented systematic deviations
-(disclosure suppression, not port bugs).
+(disclosure suppression, not port bugs). The reference implementation is archived in
+`notebooks_archive/` for provenance; the pipeline fully supersedes it.
 
 **Sanity invariants:** the five invariants in [`run_sanity`](#-method-invariants) are checked
 after every run. A run that violates any invariant exits with code 1 by default.
