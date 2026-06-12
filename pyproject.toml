@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "chainsolvers>=0.1.0",
     "geopandas>=1.1.1",
+    "matplotlib>=3.11.0",
     "notebook>=7.4.7",
     "numpy>=2.3.4",
     "openpyxl>=3.1.5",
