@@ -51,6 +51,11 @@ Note on building_size vs dwelling_building_size (z22data feature names are INVER
       (most likely a translation mix-up of the two Destatis tables "Gebaeude mit
       Wohnraum nach Gebaeudetyp/-groesse" vs "Wohnungen in Gebaeuden mit Wohnraum
       nach Gebaeudetyp/-groesse" in the upstream z22 project).
+    CONFIRMED 2026-06-12 against the OFFICIAL Destatis Insgesamt totals (10km):
+      z22 'building_size' grand total          = 43,107,077 ≈ Destatis WOHNUNGEN 43,106,536
+      z22 'dwelling_building_size' grand total  = 19,957,238 ≈ Destatis GEBAEUDE  19,957,289
+      (Destatis "Gebaeude...nach Gebaeudetyp" Insgesamt_Gebaeude = 19,957,289;
+       "Wohnungen...nach Gebaeudetyp" Insgesamt_Wohnungen = 43,106,536.)
   The FEATURE_MAP below therefore maps z22 'building_size' -> Wohnung_* columns and
   'dwelling_building_size' -> Geb_* columns. This is SEMANTICALLY CORRECT — do not
   "fix" it to match the literal z22 feature names (guarded by a regression test).

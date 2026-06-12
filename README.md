@@ -519,6 +519,27 @@ The paper is **open access** — read it on [ScienceDirect](https://www.scienced
 
 ---
 
+## 🙏 Acknowledgements & data sources
+
+This project builds on open data and open infrastructure — credit where it is due:
+
+- **[z22data](https://github.com/JsLth/z22data) / [z22](https://github.com/JsLth/z22)** by
+  **Jonas Lieth** — the `merge` stage ingests the Zensus 2022 grid directly from this
+  GitHub Parquet mirror (stable URLs, no portal scraping). Thank you for maintaining it.
+  *(Heads-up for users and maintainers: in the current z22data release the feature names
+  `building_size` and `dwelling_building_size` appear to be swapped relative to their
+  contents — verified against the official Destatis Insgesamt totals; see
+  [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md). Our `FEATURE_MAP` corrects for this.)*
+- **Statistische Ämter des Bundes und der Länder — Zensus 2022.** Census grid content;
+  © Statistische Ämter des Bundes und der Länder, 2024. Licence: dl-de/by-2-0.
+- **GeoBasis-DE / BKG** — INSPIRE grid geometry and VG250 municipality boundaries
+  (© GeoBasis-DE / BKG 2023, dl-de/by-2-0).
+- **BBSR** — RegioStaR regional typology (Referenz Gebietsstand 31.12.2022).
+- **infas / DLR / IVT / infas 360** — MiD 2023 (Mobilität in Deutschland), the household
+  travel survey that motivates the control selection.
+
+---
+
 ## ⚖️ License
 
 GPL-3.0-or-later — see [`LICENSE`](LICENSE).
