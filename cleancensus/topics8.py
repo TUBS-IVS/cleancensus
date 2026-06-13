@@ -322,12 +322,14 @@ def run_topics8(cfg) -> None:
 
     print(f"[topics8] work_dir={work_dir}")
 
+    # NOTE: no internal skip-if-exists here. The pipeline runner already gates this
+    # stage via is_complete()/--force; an internal `if not out.exists()` guard would
+    # silently IGNORE --force and reuse stale outputs (it did, masking a regression on
+    # 2026-06-13). When the pipeline decides to run topics8, always rebuild both passes.
+
     # 1km pass
-    if not out_1.exists():
-        print("[topics8] running 1km pass ...")
-        run_topics8_1km(df10_path, df1_pickle, out_1)
-    else:
-        print(f"[topics8] 1km output exists, skipping: {out_1}")
+    print("[topics8] running 1km pass ...")
+    run_topics8_1km(df10_path, df1_pickle, out_1)
 
     # 100m pass
     parents = build_subset_parents(cfg) if cfg.mode == "subset" else None
@@ -337,10 +339,7 @@ def run_topics8(cfg) -> None:
         print(f"[topics8] running 100m subset pass -> {subset_out}")
         run_topics8_100m(out_1, path_100, subset_out, parents=parents)
     else:
-        if not out_100.exists():
-            print("[topics8] running 100m national pass ...")
-            run_topics8_100m(out_1, path_100, out_100, parents=None)
-        else:
-            print(f"[topics8] 100m output exists, skipping: {out_100}")
+        print("[topics8] running 100m national pass ...")
+        run_topics8_100m(out_1, path_100, out_100, parents=None)
 
     print("[topics8] done.")

@@ -13,6 +13,22 @@ Dates are the date the run was validated or the version was released.
 
 ## [Unreleased] — Gemeinde controls, Destatis supplement, RegioStaR BBSR 2022, vacancy topic
 
+### z22data `households` grid is defective at 1km/100m — use official Destatis totals
+
+- z22data's `households` feature (`Insgesamt_Haushalte_Groesse_des_privaten_Haushalts`) is
+  severely under-populated at fine resolutions: national Σ z22 100m = 2.68M (6.7%), 1km =
+  34.8M (87%) vs the complete official Destatis 39.6M / ~40.2M. The cells exist but values
+  are zeroed for ~93% of 100m cells (10km is fine).
+- Effect: the topics8 1km→100m household downscale collapsed the whole km² household mass
+  onto the single non-zeroed child per dense block (make_child_totals_adj scales it up),
+  giving `|HH_Seniorenstatus_adj − HH_Groesse_adj|` up to 7936 in 2,480 dense cells and
+  failing two e2e sanity checks (first full raw→final run, 2026-06-13).
+- `cleancensus/z22.py` `run_merge_z22`: prefer the official Destatis supplement for the HH
+  total over the defective z22 column (all levels). Verified vs petre's reference: cell
+  `…N3387200E4324200` now 161 (was z22's 169); broken 1km blocks fully populated (86/86).
+- `cleancensus/topics8.py` `run_topics8`: removed the internal skip-if-exists guard that
+  ignored `--force` and reused stale outputs (it masked this regression on the first run).
+
 ### z22data feature-name swap fixed upstream (building_size / dwelling_building_size)
 
 - We [reported](https://github.com/JsLth/z22data/issues/4) that z22data's `building_size`
