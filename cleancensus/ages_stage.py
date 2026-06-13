@@ -23,7 +23,6 @@ Outputs (work_dir):
 """
 from __future__ import annotations
 
-import logging
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -31,9 +30,10 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 
-log = logging.getLogger(__name__)
+log = get_logger("ages")
 
 # ---------------------------------------------------------------------------
 # Bin specifications (ported from cells [6] and [7])
@@ -357,7 +357,7 @@ def fit_single_years_10km(
         if verbose:
             S = X.sum(axis=0)
             err = np.mean(np.abs(S - nat) / np.maximum(nat, 1.0))
-            log.info("[ages|10km] iter %d/%d national rel.err ~ %.3e", it + 1, outer_iters, err)
+            log.info("iter %d/%d national rel.err ~ %.3e", it + 1, outer_iters, err)
 
     age_index = list(range(0, top_age + 1))
     out = pd.DataFrame(X, index=df.index, columns=age_index)
@@ -639,7 +639,7 @@ def _load_nat(cfg) -> pd.Series:
         from pathlib import Path
         pp = Path(p)
         if pp.exists():
-            log.info("[ages] loading national age vector from %s", pp)
+            log.info("loading national age vector from %s", pp)
             return load_national_single_years(pp)
     raise FileNotFoundError(
         f"national_age_vector.csv not found. Searched: {candidates}"
@@ -653,7 +653,7 @@ def run_ages(cfg) -> None:  # cfg: Config
     # ------------------------------------------------------------------
     # Load totals outputs
     # ------------------------------------------------------------------
-    log.info("[ages] loading totals parquets")
+    log.info("loading totals parquets")
     df10_raw = pd.read_parquet(work / "totals_10km.parquet")
     df1_raw  = pd.read_parquet(work / "totals_1km.parquet")
     df100_raw = pd.read_parquet(work / "totals_100m.parquet")
@@ -666,7 +666,7 @@ def run_ages(cfg) -> None:  # cfg: Config
     # ------------------------------------------------------------------
     # Step 1: 10km single-year fitting (cell [6])
     # ------------------------------------------------------------------
-    log.info("[ages] fitting 10km single years")
+    log.info("fitting 10km single years")
     if "GITTER_ID_10km" in df10.columns:
         df10 = df10.set_index("GITTER_ID_10km")
 
@@ -680,12 +680,12 @@ def run_ages(cfg) -> None:  # cfg: Config
 
     out10 = work / "df10_with_single_years.parquet"
     df10_with_ages.to_parquet(out10)
-    log.info("[ages] wrote %s  (rows=%d)", out10.name, len(df10_with_ages))
+    log.info("wrote %s  (rows=%d)", out10.name, len(df10_with_ages))
 
     # ------------------------------------------------------------------
     # Step 2: 10km -> 1km downscaling (cell [7])
     # ------------------------------------------------------------------
-    log.info("[ages] downscaling 10km -> 1km")
+    log.info("downscaling 10km -> 1km")
 
     df10_reset = df10_with_ages.reset_index()  # restore GITTER_ID_10km as column
 
@@ -728,12 +728,12 @@ def run_ages(cfg) -> None:  # cfg: Config
     df1_with_ages = df1.join(ages_1km)
     out1 = work / "df1_with_single_years.parquet"
     df1_with_ages.to_parquet(out1)
-    log.info("[ages] wrote %s  (rows=%d)", out1.name, len(df1_with_ages))
+    log.info("wrote %s  (rows=%d)", out1.name, len(df1_with_ages))
 
     # ------------------------------------------------------------------
     # Step 3: 1km -> 100m downscaling (cell [7])
     # ------------------------------------------------------------------
-    log.info("[ages] downscaling 1km -> 100m")
+    log.info("downscaling 1km -> 100m")
 
     df100["GITTER_ID_1km"] = df100["GITTER_ID_1km"].astype(str).str.strip()
     orphans_in_child = c_100_set - p_1km
@@ -773,7 +773,7 @@ def run_ages(cfg) -> None:  # cfg: Config
     df100_with_ages = df100.join(ages_100m_ok)
     out100 = work / "df100_with_single_years.parquet"
     df100_with_ages.to_parquet(out100)
-    log.info("[ages] wrote %s  (rows=%d)", out100.name, len(df100_with_ages))
+    log.info("wrote %s  (rows=%d)", out100.name, len(df100_with_ages))
 
 
 def ages_complete(cfg) -> bool:

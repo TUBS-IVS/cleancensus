@@ -66,8 +66,12 @@ import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from cleancensus.logsetup import get_logger
+
 if TYPE_CHECKING:
     import pandas as pd
+
+log = get_logger("merge")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -521,16 +525,16 @@ def run_merge_z22(cfg) -> None:
     levels = ["10km", "1km", "100m"]
     for level in levels:
         raw_dir = cfg.inputs_dir.parent / "raw" / "z22" / level
-        print(f"[merge/z22] level={level}: downloading to {raw_dir} ...")
+        log.info(f"level={level}: downloading to {raw_dir} ...")
         download_z22(level, features, raw_dir)
 
-        print(f"[merge/z22] level={level}: building z22 merged table ...")
+        log.info(f"level={level}: building z22 merged table ...")
         df = build_merged_table(level, raw_dir)
 
         # ---- Destatis-CSV supplement ----------------------------------------
         destatis_dir = cfg.destatis_raw_dir
         if destatis_dir.exists():
-            print(f"[merge/z22] level={level}: ingesting Destatis-CSV supplement from {destatis_dir} ...")
+            log.info(f"level={level}: ingesting Destatis-CSV supplement from {destatis_dir} ...")
             destatis_df = merge_destatis_tables(level, destatis_dir)
             if destatis_df is not None:
                 gid_col = f"GITTER_ID_{level}"
@@ -549,8 +553,8 @@ def run_merge_z22(cfg) -> None:
                 z22_defective = [c for c in prefer_destatis if c in df.columns
                                  and c in destatis_df.columns]
                 if z22_defective:
-                    print(f"[merge/z22] level={level}: preferring Destatis supplement over "
-                          f"defective z22 column(s): {z22_defective}")
+                    log.info(f"level={level}: preferring Destatis supplement over "
+                             f"defective z22 column(s): {z22_defective}")
                     df = df.drop(columns=z22_defective)
                 # collision guard: z22data already covers some supplement columns
                 # (e.g. family_type == Typ_der_Kernfamilie_nach_Kindern, gated EXACT)
@@ -559,18 +563,18 @@ def run_merge_z22(cfg) -> None:
                 overlap = [c for c in destatis_df.columns
                            if c != gid_col and c in df.columns]
                 if overlap:
-                    print(f"[merge/z22] level={level}: dropping {len(overlap)} supplement "
-                          f"columns already provided by z22data (e.g. {overlap[0]})")
+                    log.info(f"level={level}: dropping {len(overlap)} supplement "
+                             f"columns already provided by z22data (e.g. {overlap[0]})")
                     destatis_df = destatis_df.drop(columns=overlap)
                 before = df.shape[1]
                 df = df.merge(destatis_df, on=gid_col, how="left")
                 added = df.shape[1] - before
-                print(f"[merge/z22] level={level}: added {added} Destatis-CSV columns")
+                log.info(f"level={level}: added {added} Destatis-CSV columns")
             else:
-                print(f"[merge/z22] level={level}: no Destatis ZIPs found in {destatis_dir}, skipping supplement")
+                log.warning(f"level={level}: no Destatis ZIPs found in {destatis_dir}, skipping supplement")
         else:
-            print(
-                f"[merge/z22] level={level}: {destatis_dir} not found — "
+            log.warning(
+                f"level={level}: {destatis_dir} not found — "
                 "Destatis supplement skipped (z22-only mode). "
                 "Copy the 6 ZIPs there to include the 6 missing topics."
             )
@@ -589,7 +593,7 @@ def run_merge_z22(cfg) -> None:
         out_path = cfg.work_dir / f"merged_{level}_gitter.parquet"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         pq.write_table(pa.Table.from_pandas(df), out_path)
-        print(f"[merge/z22] level={level}: wrote {out_path} ({len(df):,} rows, {df.shape[1]} cols)")
+        log.info(f"level={level}: wrote {out_path} ({len(df):,} rows, {df.shape[1]} cols)")
 
 
 def merge_complete(cfg) -> bool:

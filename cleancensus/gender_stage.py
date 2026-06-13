@@ -37,7 +37,6 @@ from __future__ import annotations
 
 import csv
 import io
-import logging
 import re
 from pathlib import Path
 from typing import Optional
@@ -45,9 +44,10 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 
-log = logging.getLogger(__name__)
+log = get_logger("gender")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -387,7 +387,7 @@ def add_gender_split(
     )
     aa_sum = cells[AGE_COLS].to_numpy(np.float32)
     max_diff = float(np.abs(mf_sum - aa_sum).max())
-    log.info("[gender] cell-age reconstruction max abs diff: %.3e", max_diff)
+    log.info("cell-age reconstruction max abs diff: %.3e", max_diff)
 
     m_age_cols = [f"M_AGE_{a}" for a in range(AGE_TOP + 1)]
     f_age_cols = [f"F_AGE_{a}" for a in range(AGE_TOP + 1)]
@@ -455,12 +455,12 @@ def backfill_orphans(
     off_idx  = np.flatnonzero(off_mask)
     n_backfilled = off_idx.size
 
-    log.info("[gender] backfilling %d orphan rows", n_backfilled)
+    log.info("backfilling %d orphan rows", n_backfilled)
 
     if log_path is not None and off_idx.size:
         cols_show = ["GITTER_ID_100m", ARS_COL, "POP_TOTAL_100m_adj"]
         cells.loc[cells.index[off_idx], cols_show].to_csv(log_path, index=False)
-        log.info("[gender] wrote backfill log to %s", log_path)
+        log.info("wrote backfill log to %s", log_path)
 
     if off_idx.size == 0:
         return cells, 0
@@ -524,20 +524,20 @@ def backfill_orphans(
     cells.loc[cells.index[off_idx], "M_TOTAL"] = male_off.sum(axis=1)
     cells.loc[cells.index[off_idx], "F_TOTAL"] = female_off.sum(axis=1)
 
-    log.info("[gender] filled %d orphan rows via Gemeinde age shares + male shares.", off_idx.size)
+    log.info("filled %d orphan rows via Gemeinde age shares + male shares.", off_idx.size)
 
     # QA
     row_age_post = cells[AGE_COLS].sum(axis=1).to_numpy(float)
     rel_vs_pop   = np.abs(row_age_post - pop) / np.maximum(pop, 1.0)
     log.info(
-        "[gender|backfill] vs POP_TOTAL_100m_adj: max=%.3e mean=%.3e",
+        "backfill vs POP_TOTAL_100m_adj: max=%.3e mean=%.3e",
         rel_vs_pop.max(), rel_vs_pop.mean(),
     )
     agg_m = cells[M_COLS].sum(axis=0).to_numpy(float)
     agg_f = cells[F_COLS].sum(axis=0).to_numpy(float)
     agg_a = cells[AGE_COLS].sum(axis=0).to_numpy(float)
     log.info(
-        "[gender|backfill] national-by-age max|M+F-AGE|=%.3e",
+        "backfill national-by-age max|M+F-AGE|=%.3e",
         float(np.abs((agg_m + agg_f) - agg_a).max()),
     )
 
@@ -564,7 +564,7 @@ def _resolve_1000a_csv(cfg) -> Path:
         return _LOCAL_1000A
     if _T_1000A.exists():
         log.warning(
-            "[gender] GENESIS CSV local copy not found at %s; "
+            "GENESIS CSV local copy not found at %s; "
             "falling back to T: path %s — consider copying to "
             "'data/raw/genesis/1000A-2027_bevoelkerung_alter_geschlecht_gemeinden.csv'",
             _LOCAL_1000A,
@@ -597,25 +597,25 @@ def run_gender(cfg) -> None:
 
     # --- 1) Load reference data ---
     csv_path = _resolve_1000a_csv(cfg)
-    log.info("[gender] loading 1000A reference from %s", csv_path)
+    log.info("loading 1000A reference from %s", csv_path)
     total_df, male_df, female_df = load_age_csv_to_matrices(csv_path)
-    log.info("[gender] reference tables: shape=%s", male_df.shape)
+    log.info("reference tables: shape=%s", male_df.shape)
 
     # --- 2) Load cells (gemeinde stage output) ---
-    log.info("[gender] loading gemeinde cells from %s", cells_in)
+    log.info("loading gemeinde cells from %s", cells_in)
     cells = pd.read_parquet(cells_in)
-    log.info("[gender] cells loaded: %d rows x %d cols", *cells.shape)
+    log.info("cells loaded: %d rows x %d cols", *cells.shape)
 
     # --- 3) Gender split ---
     cells = add_gender_split(cells, male_df, female_df)
 
     # --- 4) Backfill orphans ---
     cells, n_filled = backfill_orphans(cells, male_df, female_df, log_path=log_out)
-    log.info("[gender] backfilled %d rows", n_filled)
+    log.info("backfilled %d rows", n_filled)
 
     # --- 5) Write output ---
     cells.to_parquet(cells_out, index=False)
-    log.info("[gender] wrote %s (%d rows)", cells_out.name, len(cells))
+    log.info("wrote %s (%d rows)", cells_out.name, len(cells))
 
 
 def gender_complete(cfg) -> bool:
