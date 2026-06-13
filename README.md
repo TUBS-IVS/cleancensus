@@ -358,10 +358,14 @@ square cells, each with a stable ID (e.g. `CRS3035RES100mN2691900E4341100`).
 - **Manual alternative:** [www.zensus2022.de](https://www.zensus2022.de) → Ergebnisse →
   Gitterzellenbasierte Ergebnisse — ZIP archives of CSV tables at all three resolutions.
 
-**Note on z22data feature-name inversion (corrected):** z22data's `building_size` and
-`dwelling_building_size` feature names are swapped relative to their literal meaning — a
-translation issue in the upstream z22 project. The `FEATURE_MAP` maps them semantically
-correctly (verified by the MFH_13+ discriminator); a regression test guards this direction.
+**Note on the z22data feature-name swap (fixed upstream 2026-06-12):** z22data's
+`building_size` and `dwelling_building_size` feature names used to be swapped relative to
+their contents — we [reported this](https://github.com/JsLth/z22data/issues/4) and the
+upstream *re-process 2022 data* commit corrected it, so the names now match their contents
+(`building_size` = Gebäude, `dwelling_building_size` = Wohnungen). The `FEATURE_MAP` maps
+them accordingly (verified against the official Destatis Insgesamt totals; a regression
+test guards the direction). If you have z22data parquets cached from before 2026-06-12,
+delete `data/raw/z22/` so the corrected files are re-downloaded.
 See [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) for the full investigation.
 Credit: Jonas Lieth / z22data.
 
@@ -526,10 +530,10 @@ This project builds on open data and open infrastructure — credit where it is 
 - **[z22data](https://github.com/JsLth/z22data) / [z22](https://github.com/JsLth/z22)** by
   **Jonas Lieth** — the `merge` stage ingests the Zensus 2022 grid directly from this
   GitHub Parquet mirror (stable URLs, no portal scraping). Thank you for maintaining it.
-  *(Heads-up for users and maintainers: in the current z22data release the feature names
-  `building_size` and `dwelling_building_size` appear to be swapped relative to their
-  contents — verified against the official Destatis Insgesamt totals; see
-  [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md). Our `FEATURE_MAP` corrects for this.)*
+  *(We reported that the `building_size` / `dwelling_building_size` feature names were
+  swapped relative to their contents ([issue #4](https://github.com/JsLth/z22data/issues/4));
+  it was fixed in the 2026-06-12 re-process. Our `FEATURE_MAP` now follows the corrected
+  upstream names — see [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md).)*
 - **Statistische Ämter des Bundes und der Länder — Zensus 2022.** Census grid content;
   © Statistische Ämter des Bundes und der Länder, 2024. Licence: dl-de/by-2-0.
 - **GeoBasis-DE / BKG** — INSPIRE grid geometry and VG250 municipality boundaries

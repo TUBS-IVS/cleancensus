@@ -13,6 +13,20 @@ Dates are the date the run was validated or the version was released.
 
 ## [Unreleased] — Gemeinde controls, Destatis supplement, RegioStaR BBSR 2022, vacancy topic
 
+### z22data feature-name swap fixed upstream (building_size / dwelling_building_size)
+
+- We [reported](https://github.com/JsLth/z22data/issues/4) that z22data's `building_size`
+  and `dwelling_building_size` feature names were swapped relative to their contents; the
+  upstream **"re-process 2022 data"** commit (2026-06-12) corrected it.
+- `cleancensus/z22.py` `FEATURE_MAP`: `building_size` → `Geb_*` and `dwelling_building_size`
+  → `Wohnung_*` (previously the reverse, which compensated for the upstream swap). Output
+  column names and gated values are unchanged — only the upstream source feature is re-routed.
+  Verified 2026-06-13 vs official Destatis Insgesamt totals (`building_size` grand total
+  19,957,238 ≈ GEBAEUDE; `dwelling_building_size` 43,107,077 ≈ WOHNUNGEN).
+- Regression test `TestGebaeudetypSemanticDirection` and `docs/Z22_GATE_REPORT.md` updated.
+- **Cache note:** z22data parquets cached before 2026-06-12 hold the old swapped contents —
+  delete `data/raw/z22/` so the corrected files are re-downloaded before re-running `merge`.
+
 ### Gemeinde-level control tables (T4)
 
 - `cleancensus/gemeinde_controls.py`: `build_gemeinde_controls()` and `run_gemeinde_controls()` —
