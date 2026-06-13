@@ -538,24 +538,15 @@ def run_merge_z22(cfg) -> None:
             destatis_df = merge_destatis_tables(level, destatis_dir)
             if destatis_df is not None:
                 gid_col = f"GITTER_ID_{level}"
-                # KNOWN-DEFECTIVE z22data features: prefer the official Destatis
-                # supplement instead of z22 (which silently wins the overlap below).
-                # z22data's `households` grid (Insgesamt_Haushalte_Groesse_des_privaten_
-                # Haushalts) is severely under-populated at finer resolutions — values are
-                # zeroed for most cells: national sums z22 100m = 2.68M (6.7%) and 1km =
-                # 34.8M (87%) vs the complete Destatis 39.6M / ~40.2M. Using z22's sparse
-                # total collapses the topics8 1km->100m HH downscale onto a single child
-                # per dense block (verified 2026-06-13 against petre's Destatis-sourced
-                # reference). Drop z22's defective column so Destatis fills it densely.
-                prefer_destatis = {
-                    f"Insgesamt_Haushalte_Groesse_des_privaten_Haushalts_{level}-Gitter",
-                }
-                z22_defective = [c for c in prefer_destatis if c in df.columns
-                                 and c in destatis_df.columns]
-                if z22_defective:
-                    log.info(f"level={level}: preferring Destatis supplement over "
-                             f"defective z22 column(s): {z22_defective}")
-                    df = df.drop(columns=z22_defective)
+                # NOTE: z22data's `households` grid (Insgesamt_Haushalte_Groesse_des_
+                # privaten_Haushalts) was under-populated at fine resolutions (values
+                # zeroed for most cells) until JsLth/z22data took the totals directly
+                # from the official census totals (fixed 2026-06-13). The current upstream
+                # is dense and matches the official Destatis Insgesamt_Haushalte exactly
+                # (national 10km 40.24M / 1km 40.22M / 100m 39.62M, every cell populated),
+                # so z22 is the primary source again and wins the overlap below. Cache
+                # note: delete pre-2026-06-13 cached households_0 parquets so the corrected
+                # dense version is re-downloaded.
                 # collision guard: z22data already covers some supplement columns
                 # (e.g. family_type == Typ_der_Kernfamilie_nach_Kindern, gated EXACT)
                 # — a plain merge would produce _x/_y duplicate columns that crash

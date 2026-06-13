@@ -27,19 +27,27 @@ Dates are the date the run was validated or the version was released.
   every renamed file keeps a legacy read-alias so pre-existing artifacts still resolve.
 - Public INPUT (`*_de_prepared.parquet`) and OUTPUT (`*_de_{tag}.parquet`) schemas are unchanged.
 
-### z22data `households` grid is defective at 1km/100m — use official Destatis totals
+### z22data `households` totals were sparse at 1km/100m — reported & fixed upstream
 
-- z22data's `households` feature (`Insgesamt_Haushalte_Groesse_des_privaten_Haushalts`) is
-  severely under-populated at fine resolutions: national Σ z22 100m = 2.68M (6.7%), 1km =
-  34.8M (87%) vs the complete official Destatis 39.6M / ~40.2M. The cells exist but values
-  are zeroed for ~93% of 100m cells (10km is fine).
-- Effect: the topics8 1km→100m household downscale collapsed the whole km² household mass
-  onto the single non-zeroed child per dense block (make_child_totals_adj scales it up),
-  giving `|HH_Seniorenstatus_adj − HH_Groesse_adj|` up to 7936 in 2,480 dense cells and
+- We found z22data's `households` feature (`Insgesamt_Haushalte_Groesse_des_privaten_
+  Haushalts`) was severely under-populated at fine resolutions: national Σ z22 100m = 2.68M
+  (6.7%), 1km = 34.8M (87%) vs the complete official 39.6M / ~40.2M — the cells existed but
+  ~93% of 100m values were zeroed (10km was fine). Root cause (per the maintainer): the
+  early census-grid CSV lacked an `Insgesamt_Haushalte` column, so totals were inferred from
+  the sum of household-size categories, and that SQL dropped cells without all size classes.
+- Effect on us: the topics8 1km→100m household downscale collapsed the whole km² household
+  mass onto the single non-zeroed child per dense block (`make_child_totals_adj` scales it
+  up), giving `|HH_Seniorenstatus_adj − HH_Groesse_adj|` up to 7936 in 2,480 dense cells and
   failing two e2e sanity checks (first full raw→final run, 2026-06-13).
-- `cleancensus/z22.py` `run_merge_z22`: prefer the official Destatis supplement for the HH
-  total over the defective z22 column (all levels). Verified vs petre's reference: cell
-  `…N3387200E4324200` now 161 (was z22's 169); broken 1km blocks fully populated (86/86).
+- **Fixed upstream (2026-06-13):** JsLth/z22data re-published `households_0.parquet` taking
+  the totals directly from the official census totals — now dense at every level (national
+  40.24M / 40.22M / 39.62M, every cell populated) and matching the official Destatis
+  `Insgesamt_Haushalte` exactly (e.g. cell `…N3387200E4324200` = 161). We verified all three
+  levels against the maintainer's reported figures.
+- `cleancensus/z22.py` `run_merge_z22`: z22 is the primary source for the HH total again
+  (the interim "prefer Destatis supplement" override was removed). **Cache note:** delete
+  pre-2026-06-13 cached `data/raw/z22/**/households_0.parquet` so the corrected dense files
+  are re-downloaded before re-running `merge`.
 - `cleancensus/topics8.py` `run_topics8`: removed the internal skip-if-exists guard that
   ignored `--force` and reused stale outputs (it masked this regression on the first run).
 

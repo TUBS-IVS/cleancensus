@@ -375,8 +375,10 @@ their contents — we [reported this](https://github.com/JsLth/z22data/issues/4)
 upstream *re-process 2022 data* commit corrected it, so the names now match their contents
 (`building_size` = Gebäude, `dwelling_building_size` = Wohnungen). The `FEATURE_MAP` maps
 them accordingly (verified against the official Destatis Insgesamt totals; a regression
-test guards the direction). If you have z22data parquets cached from before 2026-06-12,
-delete `data/raw/z22/` so the corrected files are re-downloaded.
+test guards the direction). A second fix (2026-06-13) made the `households` totals dense at
+1 km/100 m (they were previously inferred from category sums and dropped most cells). **If you
+have z22data parquets cached from before 2026-06-13, delete `data/raw/z22/` so the corrected
+files are re-downloaded.**
 See [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md) for the full investigation.
 Credit: Jonas Lieth / z22data.
 
@@ -541,10 +543,14 @@ This project builds on open data and open infrastructure — credit where it is 
 - **[z22data](https://github.com/JsLth/z22data) / [z22](https://github.com/JsLth/z22)** by
   **Jonas Lieth** — the `merge` stage ingests the Zensus 2022 grid directly from this
   GitHub Parquet mirror (stable URLs, no portal scraping). Thank you for maintaining it.
-  *(We reported that the `building_size` / `dwelling_building_size` feature names were
-  swapped relative to their contents ([issue #4](https://github.com/JsLth/z22data/issues/4));
-  it was fixed in the 2026-06-12 re-process. Our `FEATURE_MAP` now follows the corrected
-  upstream names — see [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md).)*
+  *(We reported two upstream issues, both fixed promptly: (1) the `building_size` /
+  `dwelling_building_size` feature names were swapped relative to their contents
+  ([issue #4](https://github.com/JsLth/z22data/issues/4)), corrected in the 2026-06-12
+  re-process — our `FEATURE_MAP` now follows the corrected names; (2) the `households`
+  totals were sparse at 1 km/100 m (inferred from category sums in the early CSV), fixed
+  2026-06-13 by sourcing the totals directly from the official census totals — now dense
+  and matching Destatis exactly. Thanks for the fast turnaround! See
+  [`docs/Z22_GATE_REPORT.md`](docs/Z22_GATE_REPORT.md).)*
 - **Statistische Ämter des Bundes und der Länder — Zensus 2022.** Census grid content;
   © Statistische Ämter des Bundes und der Länder, 2024. Licence: dl-de/by-2-0.
 - **GeoBasis-DE / BKG** — INSPIRE grid geometry and VG250 municipality boundaries
