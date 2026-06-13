@@ -13,11 +13,15 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 
-from cleancensus import __version__
+from cleancensus import __version__, report
 from cleancensus.config import load_config
+from cleancensus.logsetup import get_logger, setup_logging
 from cleancensus.pipeline import plan, run_pipeline
+
+log = get_logger("cli")
 
 
 def _git_sha() -> str:
@@ -67,35 +71,39 @@ def main(argv: list[str] | None = None) -> int:
             "Requires data/raw/regionaltabellen/Regionaltabelle_Bevoelkerung.xlsx."
         ),
     )
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="verbose logging (DEBUG): per-cell diagnostics, every detail")
+    ap.add_argument("-q", "--quiet", action="store_true",
+                    help="quiet logging (WARNING): only warnings and errors")
     args = ap.parse_args(argv)
+
+    level = "DEBUG" if args.verbose else "WARNING" if args.quiet else "INFO"
+    setup_logging(level)
 
     cfg = load_config(args.config)
 
     # --gemeinde-controls: parse Regionaltabellen and exit
     if args.gemeinde_controls:
         from cleancensus.gemeinde_controls import run_gemeinde_controls
-        print(f"cleancensus {__version__} | config: {cfg.config_path}")
-        print("[gemeinde-controls] parsing Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx ...")
+        log.info("parsing Regionaltabelle_Bildung_Erwerbstaetigkeit.xlsx ...")
         run_gemeinde_controls(cfg, fill=args.fill)
-        print("[gemeinde-controls] done")
+        log.info("gemeinde-controls done")
         return 0
 
     steps = plan(cfg, force=args.force, from_stage=args.from_stage)
 
-    print(f"cleancensus {__version__} | config: {cfg.config_path}")
-    print(f"  scope   : {cfg.mode}"
-          + (f" (ars_prefixes={cfg.ars_prefixes})" if cfg.mode == "subset" else ""))
-    print(f"  topics  : {cfg.topics}")
-    print(f"  tenure  : {cfg.derived_tenure} | sanity: {cfg.sanity}")
-    print(f"  outputs : {cfg.out_1.name}, {cfg.out_100.name} (dir: {cfg.outputs_dir})")
-    print("  plan:")
+    report.print_banner(cfg, steps)
+    log.info("topics : %s", ", ".join(cfg.topics))
+    log.info("outputs: %s, %s  (dir: %s)", cfg.out_1.name, cfg.out_100.name, cfg.outputs_dir)
     for i, step in enumerate(steps, 1):
-        print(f"    {i:>2}. {step['name']:<10} [{step['action']:<13}] {step['desc']}")
+        log.info("  %2d. %-10s [%-13s] %s", i, step["name"], step["action"], step["desc"])
     if args.dry_run:
         return 0
 
     started = datetime.now(timezone.utc).isoformat()
+    t0 = time.perf_counter()
     timings, failures = run_pipeline(cfg, force=args.force, from_stage=args.from_stage)
+    total_elapsed = time.perf_counter() - t0
 
     if cfg.write_manifest:
         manifest = {
@@ -124,16 +132,11 @@ def main(argv: list[str] | None = None) -> int:
         }
         mpath = cfg.outputs_dir / f"run_manifest_{cfg.version_tag}.json"
         mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        print(f"[manifest] wrote {mpath}")
+        log.info("wrote manifest %s", mpath.name)
 
-    if failures and cfg.sanity == "fail":
-        print(f"[cleancensus] FAILED: {failures} sanity failure(s)")
-        return 1
-    if failures:
-        print(f"[cleancensus] completed with {failures} sanity warning(s)")
-    else:
-        print("[cleancensus] completed, all checks passed")
-    return 0
+    existing_outputs = [p for p in (cfg.out_1, cfg.out_100) if p.exists()]
+    report.print_summary(cfg, timings, failures, existing_outputs, total_elapsed)
+    return 1 if (failures and cfg.sanity == "fail") else 0
 
 
 if __name__ == "__main__":

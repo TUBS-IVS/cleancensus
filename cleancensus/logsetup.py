@@ -59,6 +59,9 @@ def _force_utf8_streams() -> None:
     (cp1252) consoles or redirected log files. Best-effort; ignored if unsupported.
     """
     for stream in (sys.stdout, sys.stderr):
+        enc = (getattr(stream, "encoding", "") or "").lower().replace("-", "")
+        if enc == "utf8":
+            continue  # already UTF-8 (e.g. pytest capture buffers) — don't touch
         try:
             stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
         except (AttributeError, ValueError, OSError):
@@ -78,6 +81,13 @@ def setup_logging(level: str = "INFO", color="auto") -> None:
     else:
         for h in root.handlers:
             h.setFormatter(ColorFormatter(color=color))
+            # rebind to the *current* sys.stderr (matters when streams are swapped,
+            # e.g. pytest capture between test cases)
+            if isinstance(h, logging.StreamHandler):
+                try:
+                    h.setStream(sys.stderr)
+                except Exception:  # noqa: BLE001
+                    pass
 
 
 def get_logger(stage: str) -> logging.Logger:
