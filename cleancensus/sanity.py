@@ -13,8 +13,11 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
+from cleancensus.logsetup import get_logger
 from cleancensus.stages import load_frame
 from cleancensus.topics import build_new_topic_specs
+
+log = get_logger("sanity")
 
 ANCHOR_GEB_HEIZ = "Insgesamt_Heizungsart_Gebaeude_nach_ueberwiegender_Heizungsart_100m-Gitter_adj"
 ANCHOR_HH_GROESSE = "Insgesamt_Haushalte_Groesse_des_privaten_Haushalts_100m-Gitter_adj"
@@ -33,7 +36,7 @@ def run_sanity(cfg) -> int:
         status = "OK " if cond else "FAIL"
         if not cond:
             fail += 1
-        print(f"[{status}] {label} {detail}")
+        log.info(f"[{status}] {label} {detail}")
 
     # Determine path to check
     if cfg.mode == "subset":
@@ -54,7 +57,7 @@ def run_sanity(cfg) -> int:
     avail = set(f.name for f in pq.ParquetFile(path_100).schema_arrow)
     missing_anchors = [a for a in anchors if a not in avail]
     for a in missing_anchors:
-        print(f"[SKIP] anchor not in file (subset run?): {a}")
+        log.info(f"[SKIP] anchor not in file (subset run?): {a}")
     anchors = [a for a in anchors if a in avail]
     need.difference_update(missing_anchors)
     need.update(anchors)
@@ -69,7 +72,7 @@ def run_sanity(cfg) -> int:
 
     df = pd.read_parquet(path_100, columns=sorted(c for c in need if c in avail))
     n = len(df)
-    print(f"rows: {n:,}")
+    log.info(f"rows: {n:,}")
 
     # 1) per-topic: sum(categories) == *_adj total (core harmonization invariant)
     for s in specs:
@@ -137,7 +140,7 @@ def run_sanity(cfg) -> int:
     else:
         for s in build_new_topic_specs("1km", names=cfg.topics):
             adj_col = adj_of(s.name)
-            print(f"[SKIP] national mass check for {s.name} (subset mode)")
+            log.info(f"[SKIP] national mass check for {s.name} (subset mode)")
 
     # 4) hygiene: no NaN/negative in new category columns
     sub = df[[c for s in specs for c in s.child_cat_cols if c in df.columns]]
@@ -156,5 +159,5 @@ def run_sanity(cfg) -> int:
         vacancy_fail = check_vacancy(cfg)
         fail += vacancy_fail
 
-    print(f"\n{fail} failures")
+    log.info(f"\n{fail} failures")
     return fail

@@ -169,26 +169,38 @@ because they are Zensus 2011-only or were not released in z22:
 | `werterlaeuternde_Zeichen_*` (annotation flags) | Destatis-internal annotation flags; not in z22data |
 | `AnzahlWohnungen_Durchschn_Nettokaltmiete_Anzahl_der_Wohnungen` | Auxiliary count |
 
-### Inverted z22data feature names (building_size vs dwelling_building_size) — CORRECTED 2026-06-11
+### Swapped z22data feature names (building_size vs dwelling_building_size) — REPORTED & FIXED UPSTREAM 2026-06-12
 
-An earlier version of this report claimed the T: notebook-era merges were mislabelled.
-Systematic debugging with the MFH_13+ discriminator (buildings with 13+ dwellings are FEW,
-dwellings in such buildings are MANY) established the opposite:
+History. Systematic debugging with the MFH_13+ discriminator (buildings with 13+ dwellings
+are FEW, dwellings in such buildings are MANY) established that the T: notebook-era merges
+were labelled CORRECTLY while z22data's two feature names were swapped relative to their
+contents:
 
 - **T: merges are labelled CORRECTLY**: `MFH_13undmehrWohnungen_Geb_Gebaeudetyp` sums to
   237,542 nationally (buildings — consistent with `13undmehr_Wohnungen_Gebaeude_nach_
   Anzahl_der_Wohnungen` = 259,967), while `MFH_13undmehrWohnungen_Wohnung_Gebaeudetyp`
   sums to 5,224,648 (dwellings).
-- **z22data's FEATURE NAMES are inverted** relative to their literal meaning:
-  `building_size` actually contains *dwellings by building type* (cat 1 sum 8,665,582 ==
-  T: `FreiEFH_Wohnung_*` exactly) and `dwelling_building_size` actually contains
-  *buildings by type* (cat 1 sum 8,665,451 == T: `FreiEFH_Geb_*` exactly) — most likely
-  a translation mix-up of the two Destatis tables in the upstream z22 project.
+- **Pre-fix z22data feature names were swapped**: `building_size` then contained
+  *dwellings by building type* and `dwelling_building_size` contained *buildings by type*
+  — a translation mix-up of the two Destatis tables in the upstream z22 project.
 
-The FEATURE_MAP maps z22 `building_size` → `Wohnung_*` and `dwelling_building_size` →
-`Geb_*`, which is **semantically correct** (and why all 20 affected columns gate EXACTLY).
-A regression test (`tests/test_z22.py::TestGebaeudetypSemanticDirection`) guards this
-direction. Recommended follow-up: file an issue upstream at JsLth/z22data.
+We reported this as [z22data issue #4](https://github.com/JsLth/z22data/issues/4); the
+upstream **"re-process 2022 data"** commit (2026-06-12) corrected the swap. The current
+mirror's feature names now match their contents literally, verified 2026-06-13 against the
+official Destatis Insgesamt totals (10km):
+
+- `building_size`          grand total **19,957,238** ≈ GEBAEUDE 19,957,289; cat 1 (FreiEFH)
+  **8,665,451** == T: `FreiEFH_Geb_*` exactly.
+- `dwelling_building_size` grand total **43,107,077** ≈ WOHNUNGEN 43,106,536; cat 1 (FreiEFH)
+  **8,665,582** == T: `FreiEFH_Wohnung_*` exactly.
+
+The FEATURE_MAP therefore now maps z22 `building_size` → `Geb_*` and
+`dwelling_building_size` → `Wohnung_*` — matching the corrected upstream names and keeping
+all 20 affected columns gating EXACTLY against the (correctly labelled) T: artifacts. A
+regression test (`tests/test_z22.py::TestGebaeudetypSemanticDirection`) guards this
+direction. **Cache note:** z22data parquets cached before 2026-06-12 carry the old swapped
+contents — delete `data/raw/z22/` (or just the `building_size_*` / `dwelling_building_size_*`
+files) so the corrected data is re-downloaded.
 
 The confusion is understandable: for detached single-family houses the two universes
 nearly coincide (1 building ≈ 1 dwelling; FreiEFH 8,665,451 vs 8,665,582).

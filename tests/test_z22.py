@@ -194,26 +194,28 @@ class TestMergeStageInRegistry:
 # ---------------------------------------------------------------------------
 
 class TestGebaeudetypSemanticDirection:
-    """Guard the SEMANTICALLY CORRECT (counter-intuitive) mapping direction.
+    """Guard the SEMANTICALLY CORRECT mapping direction.
 
-    z22data's feature names are inverted relative to their literal meaning
-    (established 2026-06-11 via the MFH_13+ discriminator, see z22.py docstring):
-      z22 'building_size' cat 9 (MFH 13+) national 10km sum ~= 5,224,648 -> DWELLINGS
-      z22 'dwelling_building_size' cat 9 national 10km sum  ~=   237,542 -> BUILDINGS
-    Therefore 'building_size' MUST map to Wohnung_* and 'dwelling_building_size'
-    to Geb_* columns. Do NOT "fix" this to match the literal z22 feature names.
+    z22data's feature names were swapped relative to their contents (z22data
+    issue #4, reported by us); the MFH_13+ discriminator pins the ground truth:
+      'building_size' cat 9 (MFH 13+) -> BUILDINGS (~237,542, FEW)
+      'dwelling_building_size' cat 9  -> DWELLINGS (~5,224,648, MANY)
+    The upstream 2026-06-12 "re-process 2022 data" commit FIXED the swap, so the
+    feature names now match their contents literally. Therefore 'building_size'
+    maps to Geb_* and 'dwelling_building_size' to Wohnung_* columns. Pre-fix cached
+    parquets carry the old swapped contents and must be re-downloaded.
     """
 
-    def test_building_size_maps_to_wohnung_columns(self):
+    def test_building_size_maps_to_geb_columns(self):
         from cleancensus.z22 import FEATURE_MAP
         targets = [v for (f, c), v in FEATURE_MAP.items()
                    if f == "building_size" and c > 0]
         assert targets, "building_size categories missing from FEATURE_MAP"
-        assert all("_Wohnung_Gebaeudetyp_Groesse" in t for t in targets), targets
+        assert all("_Geb_Gebaeudetyp_Groesse" in t for t in targets), targets
 
-    def test_dwelling_building_size_maps_to_geb_columns(self):
+    def test_dwelling_building_size_maps_to_wohnung_columns(self):
         from cleancensus.z22 import FEATURE_MAP
         targets = [v for (f, c), v in FEATURE_MAP.items()
                    if f == "dwelling_building_size" and c > 0]
         assert targets, "dwelling_building_size categories missing from FEATURE_MAP"
-        assert all("_Geb_Gebaeudetyp_Groesse" in t for t in targets), targets
+        assert all("_Wohnung_Gebaeudetyp_Groesse" in t for t in targets), targets

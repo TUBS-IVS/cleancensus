@@ -35,6 +35,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from cleancensus.logsetup import get_logger
+
+log = get_logger("gemeinde-controls")
+
 
 # --- Category code -> label maps -------------------------------------------
 # These are derived from the named sheets in the Excel workbook.
@@ -333,8 +337,8 @@ def fill_gemeinde_harmonize(
 
         if remainder <= 0:
             # Degenerate: no remainder to allocate; log and assign zeros
-            print(
-                f"[gemeinde-controls][{table_name}] Kreis {kreis_key}: "
+            log.warning(
+                f"[{table_name}] Kreis {kreis_key}: "
                 f"remainder ≤0 ({remainder:.1f}); assigning 0 to {n_supp} suppressed Gemeinden"
             )
             child_totals.loc[grp_idx[supp_mask]] = 0.0
@@ -387,9 +391,9 @@ def fill_gemeinde_harmonize(
         else:
             gem.loc[grp_idx, total_col] = 0.0
     if n_degenerate:
-        print(f"[gemeinde-controls][{table_name}] degenerate Kreise (parent>0, no child "
+        log.warning(f"[{table_name}] degenerate Kreise (parent>0, no child "
               f"signal -> equal split): {n_degenerate}")
-    print(f"[gemeinde-controls][{table_name}] child-total rescale onto parent mass: "
+    log.info(f"[{table_name}] child-total rescale onto parent mass: "
           f"max |scale-1| = {max_total_rescale:.2e}")
 
     # Build parent (Kreis) frame for downscale_topic
@@ -451,8 +455,8 @@ def fill_gemeinde_harmonize(
     est_pop = float(ewz.reindex(gem.loc[is_estimated_mask, "ARS"]).fillna(0.0).sum())
     total_pop = float(ewz.reindex(gem["ARS"]).fillna(0.0).sum())
     pop_share = 100.0 * est_pop / max(total_pop, 1.0)
-    print(
-        f"[gemeinde-controls][{table_name}] estimated Gemeinden: "
+    log.info(
+        f"[{table_name}] estimated Gemeinden: "
         f"{n_estimated:,}/{n_total:,} | pop share: {pop_share:.1f}% | "
         f"max sum-vs-Kreis abs diff: {max_abs_diff:.4f}"
     )
@@ -514,8 +518,8 @@ def run_gemeinde_controls(cfg, *, fill: str = "none") -> None:
         data_cols = [c for c in df.columns if c not in ("ARS_kreis", "Name")]
         nan_count = int(df[data_cols].isna().sum().sum())
         n_cells = len(df) * len(data_cols)
-        print(
-            f"[gemeinde-controls] kreis_{name}: "
+        log.info(
+            f"kreis_{name}: "
             f"{len(df):,} Kreise | suppressed {nan_count}/{n_cells} "
             f"({100.0 * nan_count / max(n_cells, 1):.1f}%) | "
             f"wrote {out_path}"
@@ -534,7 +538,7 @@ def run_gemeinde_controls(cfg, *, fill: str = "none") -> None:
                 f"[gemeinde-controls] Bevoelkerung file not found at {bev_path}. "
                 "Required for fill=harmonize. Download from Zensus 2022 portal."
             )
-        print(f"[gemeinde-controls] loading Gemeinde population from {bev_path.name} ...")
+        log.info(f"loading Gemeinde population from {bev_path.name} ...")
         ewz = _load_gemeinde_population(bev_path)
 
     # Table-specific metadata: list of (total_col, [cat_cols]) flat-partition groups.
@@ -683,10 +687,10 @@ def run_gemeinde_controls(cfg, *, fill: str = "none") -> None:
         total_col = data_cols[0]
         nat_sum = float(df[total_col].sum(skipna=True))
 
-        print(
-            f"[gemeinde-controls] {name}: "
+        log.info(
+            f"{name}: "
             f"{gem_count:,} Gemeinden | "
             f"suppressed {supp:,}/{total_vals:,} ({supp_pct:.1f}%) | "
             f"national sum ({total_col}) = {nat_sum:,.0f}"
         )
-        print(f"[gemeinde-controls] wrote {out_path}")
+        log.info(f"wrote {out_path}")

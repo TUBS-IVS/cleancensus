@@ -26,7 +26,6 @@ and verified against that file (local equivalence gate):
 """
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Sequence
 
@@ -36,8 +35,10 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from cleancensus.config import Config
+from cleancensus.logsetup import get_logger
 
-log = logging.getLogger(__name__)
+log_aggs = get_logger("aggs")
+log_regiostar = get_logger("regiostar")
 
 # ---------------------------------------------------------------------------
 # Module constants — auditable bin spec
@@ -203,7 +204,7 @@ def run_aggs(cfg: Config) -> None:
     out_path = _aggs_output(cfg)
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"[aggs] reading {in_path} ...")
+    log_aggs.info(f"reading {in_path} ...")
     pf = pq.ParquetFile(in_path)
 
     # Build the required source columns list
@@ -220,7 +221,7 @@ def run_aggs(cfg: Config) -> None:
         )
 
     n_rows = pf.metadata.num_rows
-    print(f"[aggs] {n_rows:,} rows, computing decade bins ...")
+    log_aggs.info(f"{n_rows:,} rows, computing decade bins ...")
 
     writer: pq.ParquetWriter | None = None
     rows_written = 0
@@ -259,8 +260,8 @@ def run_aggs(cfg: Config) -> None:
     if writer is not None:
         writer.close()
 
-    print(f"[aggs] wrote {rows_written:,} rows -> {out_path}")
-    print(f"[aggs] new columns: {ALL_AGG_OUTPUT_COLS}")
+    log_aggs.info(f"wrote {rows_written:,} rows -> {out_path}")
+    log_aggs.info(f"new columns: {ALL_AGG_OUTPUT_COLS}")
 
 
 # ---------------------------------------------------------------------------
@@ -292,8 +293,8 @@ def _find_regiostar_ref(cfg: Config) -> Path:
 
     # Fallback A: BMDV 2020 in data/inputs/
     if _FALLBACK_REGIOSTAR_REF_A.exists():
-        log.warning(
-            "[regiostar] BBSR 2022 ref not found at %s; falling back to "
+        log_regiostar.warning(
+            "BBSR 2022 ref not found at %s; falling back to "
             "Gebietsstand2020 reference at %s. "
             "Download bbsr-referenz-gebietsstand-2022.xlsx to data/raw/regiostar/ "
             "for the correct Zensus 2022 ARS alignment.",
@@ -304,8 +305,8 @@ def _find_regiostar_ref(cfg: Config) -> Path:
 
     # Fallback B: eqasim-bs copy
     if _FALLBACK_REGIOSTAR_REF_B.exists():
-        log.warning(
-            "[regiostar] BBSR 2022 ref not found; falling back to eqasim-bs "
+        log_regiostar.warning(
+            "BBSR 2022 ref not found; falling back to eqasim-bs "
             "Gebietsstand2020 reference at %s.",
             _FALLBACK_REGIOSTAR_REF_B,
         )
@@ -403,21 +404,21 @@ def _load_regiostar_ref(ref_path: Path, sheet: str = "") -> pd.DataFrame:
                 f"Expected one of {REGIOSTAR_SHEET_BBSR2022!r} or {REGIOSTAR_SHEET!r}."
             )
 
-    print(
-        f"[regiostar] loading reference from {ref_path.name} (sheet={sheet!r}) ..."
+    log_regiostar.info(
+        f"loading reference from {ref_path.name} (sheet={sheet!r}) ..."
     )
     raw = pd.read_excel(ref_path, sheet_name=sheet, engine="openpyxl")
 
     if _is_bbsr2022_format(raw):
         ref = _normalize_bbsr2022(raw)
         n_rs5_nan = ref["RegioStaR5"].isna().sum()
-        print(
-            f"[regiostar] BBSR 2022 format detected: {len(ref):,} Gemeinden "
+        log_regiostar.info(
+            f"BBSR 2022 format detected: {len(ref):,} Gemeinden "
             f"(RegioStaR5 and RegioStaRGem7 not available in this sheet -> NaN)"
         )
     else:
         ref = _normalize_bmdv2020(raw)
-        print(f"[regiostar] BMDV 2020 format: {len(ref):,} Gemeinden")
+        log_regiostar.info(f"BMDV 2020 format: {len(ref):,} Gemeinden")
 
     return ref
 
@@ -446,7 +447,7 @@ def run_regiostar(cfg: Config) -> None:
         for col in REGIOSTAR_COLS
     }
 
-    print(f"[regiostar] reading {in_path} ...")
+    log_regiostar.info(f"reading {in_path} ...")
     pf = pq.ParquetFile(in_path)
     n_rows = pf.metadata.num_rows
 
@@ -490,9 +491,9 @@ def run_regiostar(cfg: Config) -> None:
     if writer is not None:
         writer.close()
 
-    print(
-        f"[regiostar] wrote {rows_written:,} rows -> {out_path}\n"
-        f"[regiostar] matched={total_matched:,}  unmatched={total_unmatched:,} "
+    log_regiostar.info(
+        f"wrote {rows_written:,} rows -> {out_path}\n"
+        f"matched={total_matched:,}  unmatched={total_unmatched:,} "
         f"(NaN for RegioStaR cols)"
     )
 

@@ -26,7 +26,10 @@ import numpy as np
 import pandas as pd
 
 from cleancensus.harmonization import TopicSpec, BLEND_STD, downscale_topic, impute_orphan_rows_100m
+from cleancensus.logsetup import get_logger
 from cleancensus.stages import DOWNSCALE_KW
+
+log = get_logger("vacancy")
 
 # Column name constants (single source of truth for both levels)
 QUOTE_1 = "Leerstandsquote_Leerstandsquote_1km-Gitter"
@@ -67,8 +70,8 @@ def build_parent_vacancy(df1: pd.DataFrame) -> pd.DataFrame:
     fill = fill.fillna(nat_mean)
     q_eff = q.where(~missing, fill)
 
-    print(
-        f"[vacancy-1km] inhabited={int((dwg > 0).sum()):,} | quote present={int(have.sum()):,} "
+    log.info(
+        f"inhabited={int((dwg > 0).sum()):,} | quote present={int(have.sum()):,} "
         f"| filled from 10km group={int(missing.sum()) - n_natfill:,} "
         f"| filled national mean={n_natfill:,} (nat mean={nat_mean:.1f}%)"
     )
@@ -91,7 +94,7 @@ def run_vacancy(cfg) -> None:
     df1["GITTER_ID_1km"] = df1["GITTER_ID_1km"].astype(str).str.strip()
     df1 = build_parent_vacancy(df1)
     df1.to_parquet(cfg.out_1, index=False)
-    print(f"[vacancy] wrote {cfg.out_1} cols={len(df1.columns)}")
+    log.info(f"wrote {cfg.out_1} cols={len(df1.columns)}")
 
     # --- 100m ---
     if cfg.mode == "subset":
@@ -116,8 +119,8 @@ def run_vacancy(cfg) -> None:
         dwg = pd.to_numeric(df100[DWG_ADJ_100], errors="coerce").fillna(0.0)
         sig = q > 0
         n_nosig = int(((~sig) & (dwg > 0)).sum())
-        print(
-            f"[vacancy-100m] inhabited={int((dwg > 0).sum()):,} "
+        log.info(
+            f"inhabited={int((dwg > 0).sum()):,} "
             f"| local signal={int((sig & (dwg > 0)).sum()):,} "
             f"| no signal (parent-share fill)={n_nosig:,}"
         )
@@ -148,7 +151,7 @@ def run_vacancy(cfg) -> None:
             verbose=True,
         )
         df100.to_parquet(subset_path, index=False)
-        print(f"[vacancy] wrote subset {subset_path} (+2 cols, {len(df100):,} rows)")
+        log.info(f"wrote subset {subset_path} (+2 cols, {len(df100):,} rows)")
         return
 
     # National mode: read the needed columns from cfg.out_100, then stream append
@@ -165,8 +168,8 @@ def run_vacancy(cfg) -> None:
     dwg = pd.to_numeric(df100[DWG_ADJ_100], errors="coerce").fillna(0.0)
     sig = q > 0
     n_nosig = int(((~sig) & (dwg > 0)).sum())
-    print(
-        f"[vacancy-100m] inhabited={int((dwg > 0).sum()):,} "
+    log.info(
+        f"inhabited={int((dwg > 0).sum()):,} "
         f"| local signal={int((sig & (dwg > 0)).sum()):,} "
         f"| no signal (parent-share fill)={n_nosig:,}"
     )
@@ -224,7 +227,7 @@ def run_vacancy(cfg) -> None:
         writer.close()
     assert pos == len(df100), f"row mismatch: streamed {pos} vs frame {len(df100)}"
     os.replace(tmp_path, cfg.out_100)
-    print(f"[vacancy] wrote {cfg.out_100} (+2 cols, {pos:,} rows)")
+    log.info(f"wrote {cfg.out_100} (+2 cols, {pos:,} rows)")
 
 
 def check_vacancy(cfg) -> int:
@@ -241,7 +244,7 @@ def check_vacancy(cfg) -> int:
         ok = bool(cond)
         if not ok:
             fail += 1
-        print(f"[{'OK ' if ok else 'FAIL'}] {label} {detail}")
+        log.info(f"[{'OK ' if ok else 'FAIL'}] {label} {detail}")
 
     if cfg.mode == "subset":
         path_100 = cfg.out_100.with_name(cfg.out_100.stem + "_SUBSET.parquet")
@@ -266,7 +269,7 @@ def check_vacancy(cfg) -> int:
     d_nonorphan = d[~is_orphan]
     n_orphan_dev = int((d[is_orphan] > 0.5).sum())
     if n_orphan_dev:
-        print(
+        log.info(
             f"[INFO] orphan cells with |occupied+vacant - DWG_adj| > 0.5: "
             f"{n_orphan_dev} (benign artifact, not counted as failure)"
         )
@@ -301,5 +304,5 @@ def check_vacancy(cfg) -> int:
         f"p99.9|d|={dd.quantile(0.999):.3f} max|d|={dd.max():.3f} parents={len(joined):,}",
     )
 
-    print(f"\n{fail} failures")
+    log.info(f"\n{fail} failures")
     return fail

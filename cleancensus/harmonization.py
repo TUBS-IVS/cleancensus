@@ -26,6 +26,10 @@ import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 
+from cleancensus.logsetup import get_logger
+
+log = get_logger("harmonize")
+
 # ---------------------------------------------------------------------
 # 0) Trust blending (central, easy-to-tune)
 # ---------------------------------------------------------------------
@@ -299,7 +303,7 @@ def downscale_topic(
                 # tiny numeric drift -> silent rescale
                 t *= Psum / max(Tsum, 1e-30)
             elif rel <= 1e-4:
-                print(f"[warn] adjust row mass by {rel:.2e} for {pid}")
+                log.warning(f"adjust row mass by {rel:.2e} for {pid}")
                 t *= Psum / max(Tsum, 1e-30)
             else:
                 raise AssertionError(
@@ -344,26 +348,26 @@ def downscale_topic(
                 f"max rel.err={rel.max():.3e}"
             )
         if not np.allclose(X.sum(axis=0), p, rtol=0, atol=1e-2):
-            print("INFO: abs difference > 0.01")
+            log.debug("INFO: abs difference > 0.01")
             diffcouter += 1
             if not np.allclose(X.sum(axis=0), p, rtol=0, atol=1): # May get close for large or many child cells
                 diff = X.sum(axis=0) - p
                 rel = np.divide(diff, np.maximum(np.abs(p), 1e-12))
-                print("WARNING: abs difference > 1")
-                print(f"Parent ID: {pid}")
-                print("Parent totals (p):")
-                print(p)
-                print("Child sums (X.sum(axis=0)):")
-                print(X.sum(axis=0))
-                print("Difference (child - parent):")
-                print(diff)
-                print("Relative difference:")
-                print(rel)
+                log.debug("WARNING: abs difference > 1")
+                log.debug(f"Parent ID: {pid}")
+                log.debug("Parent totals (p):")
+                log.debug(p)
+                log.debug("Child sums (X.sum(axis=0)):")
+                log.debug(X.sum(axis=0))
+                log.debug("Difference (child - parent):")
+                log.debug(diff)
+                log.debug("Relative difference:")
+                log.debug(rel)
                 if not np.allclose(X.sum(axis=0), p, rtol=0.02, atol=0):
-                    print("WARNING: rel difference > 0.02")
+                    log.debug("WARNING: rel difference > 0.02")
 
-    print(f"Diffcouter: {diffcouter}")
-    print(f"Parent sum 0: {parent_sum_0_counter} out of {len(parent_map)}")
+    log.debug(f"Diffcouter: {diffcouter}")
+    log.debug(f"Parent sum 0: {parent_sum_0_counter} out of {len(parent_map)}")
     return out
 
 
@@ -417,7 +421,7 @@ def normalize_parent_categories_for_specs(
         cat_cols = [c for c in spec.parent_cat_cols if c in parent_df.columns]
         if not cat_cols:
             if verbose:
-                print(f"[norm] skip '{spec.name}': no parent category cols present")
+                log.info(f"skip '{spec.name}': no parent category cols present")
             continue
 
         if child_level == "1km":
@@ -429,7 +433,7 @@ def normalize_parent_categories_for_specs(
 
         if tot_col not in parent_df.columns:
             if verbose:
-                print(f"[norm] skip '{spec.name}': parent total '{tot_col}' not found")
+                log.info(f"skip '{spec.name}': parent total '{tot_col}' not found")
             continue
 
         # Global prior shares for this topic
@@ -464,7 +468,7 @@ def normalize_parent_categories_for_specs(
             big = np.abs(f[good]) > cap_factor
             if np.any(big):
                 n_big = int(np.sum(big))
-                print(f"[norm] '{spec.name}' warning: {n_big} rows have |scale| > {cap_factor} (max={float(np.max(np.abs(f[good]))):.2f})")
+                log.warning(f"'{spec.name}' warning: {n_big} rows have |scale| > {cap_factor} (max={float(np.max(np.abs(f[good]))):.2f})")
 
         C *= f[:, None]
 
@@ -474,7 +478,7 @@ def normalize_parent_categories_for_specs(
             # cheap audit: check new sums vs totals
             new_s = C.sum(axis=1)
             err = np.abs(new_s - T) / np.maximum(T, 1.0)
-            print(f"[norm] '{spec.name}' rows={len(err):,} | max rel.err={float(err.max()):.2e} | mean={float(err.mean()):.2e}")
+            log.info(f"'{spec.name}' rows={len(err):,} | max rel.err={float(err.max()):.2e} | mean={float(err.mean()):.2e}")
 
 
 # ---------------------------------------------------------------------
@@ -675,7 +679,7 @@ def apply_adj_for_all_topics(
                 out_col=adj_col,
             )
             if verbose:
-                print(f"[adj] Created {adj_col} for topic '{spec.name}'")
+                log.info(f"Created {adj_col} for topic '{spec.name}'")
         specs_out.append(TopicSpec(
             name=spec.name,
             parent_cat_cols=spec.parent_cat_cols,
@@ -705,7 +709,7 @@ def impute_orphan_rows_100m(
     """
     if orphan_flag_col not in df.columns:
         if verbose:
-            print(f"[orphans] '{orphan_flag_col}' not found; nothing to do.")
+            log.info(f"'{orphan_flag_col}' not found; nothing to do.")
         return
 
     mask_orphan = df[orphan_flag_col].to_numpy(bool)
@@ -713,7 +717,7 @@ def impute_orphan_rows_100m(
     n_orph = int(mask_orphan.sum())
     if n_orph == 0:
         if verbose:
-            print("[orphans] no orphan rows.")
+            log.info("no orphan rows.")
         return
 
     for spec in specs:
@@ -722,7 +726,7 @@ def impute_orphan_rows_100m(
         totc = spec.child_row_total_col
         if not cats or totc not in df.columns:
             if verbose:
-                print(f"[orphans:{spec.name}] skip (missing cols).")
+                log.info(f"[{spec.name}] skip (missing cols).")
             continue
 
         # Build prior from non-orphans (sum over computed 100m results)
@@ -777,8 +781,8 @@ def impute_orphan_rows_100m(
             # row-sum check (aggregate)
             rs = Xo.sum(axis=1)
             rel = np.abs(rs - T) / np.maximum(T, 1.0)
-            print(f"[orphans:{spec.name}] rows={rows} | A={used_A} B={used_B} Z={used_Z} "
-                  f"| max row rel.err={float(rel.max()):.3e} | mean={float(rel.mean()):.3e}")
+            log.info(f"[{spec.name}] rows={rows} | A={used_A} B={used_B} Z={used_Z} "
+                     f"| max row rel.err={float(rel.max()):.3e} | mean={float(rel.mean()):.3e}")
 
 # ---------------------------------------------------------------------
 # 6) Run

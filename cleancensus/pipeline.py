@@ -32,6 +32,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from cleancensus.config import Config
+from cleancensus.logsetup import get_logger
+
+log = get_logger("pipeline")
 
 
 @dataclass(frozen=True)
@@ -321,14 +324,14 @@ def run_pipeline(cfg: Config, force: bool = False, from_stage: str | None = None
             # an enabled-but-unimplemented stage is a hard error (don't silently skip)
             by_name[name].run(cfg)  # raises NotImplementedError
         if action != "run":
-            print(f"[pipeline] {name}: {action}")
+            log.info("%-10s %s", name, action)
             continue
 
         k += 1
         # --- pre-stage banner -----------------------------------------------
         prev_dur = prev_timings.get(name)
         prev_str = f"~{format_duration(prev_dur)}" if prev_dur is not None else "n/a"
-        print(f"[pipeline] ===== stage {k}/{N}: {name} ===== (last run: {prev_str})")
+        log.info("══ stage %d/%d · %s ══  (last run: %s)", k, N, name, prev_str)
 
         t0 = time.perf_counter()
         result = by_name[name].run(cfg)
@@ -347,10 +350,10 @@ def run_pipeline(cfg: Config, force: bool = False, from_stage: str | None = None
         else:
             eta_str = "n/a"
 
-        print(
-            f"[pipeline] {name} done in {format_duration(stage_dur)} "
-            f"| pipeline elapsed {format_duration(pipeline_elapsed)} "
-            f"| remaining ETA {eta_str}"
+        log.info(
+            "%-10s done in %s  ·  elapsed %s  ·  ETA %s",
+            name, format_duration(stage_dur),
+            format_duration(pipeline_elapsed), eta_str,
         )
 
         if name == "sanity" and isinstance(result, int):

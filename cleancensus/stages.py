@@ -16,8 +16,11 @@ from cleancensus.harmonization import (
     downscale_topic,
     impute_orphan_rows_100m,
 )
+from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 from cleancensus.topics import build_new_topic_specs
+
+log = get_logger("extend")
 
 DOWNSCALE_KW = dict(
     inner_passes=10,
@@ -57,8 +60,8 @@ def ensure_no_dup_columns(path):
             seen.add(n)
             keep_idx.append(i)
     out = path.with_name(path.stem + ".deduped.parquet")
-    print(f"[stage_b] source has duplicate columns {dups}; "
-          f"writing deduplicated copy -> {out.name}")
+    log.info(f"source has duplicate columns {dups}; "
+             f"writing deduplicated copy -> {out.name}")
     writer = None
     for batch in pf.iter_batches(batch_size=1_000_000):
         tbl = pa.Table.from_batches([batch]).select(keep_idx)
@@ -107,14 +110,14 @@ def build_subset_parents(cfg) -> "set[str] | None":
     )
     keep = ars5.isin(set(cfg.ars_prefixes))
     parents = set(df.loc[keep, "GITTER_ID_1km"].astype(str).str.strip().unique())
-    print(f"[subset] ARS prefixes={cfg.ars_prefixes} -> {len(parents):,} parent 1km cells")
+    log.info(f"ARS prefixes={cfg.ars_prefixes} -> {len(parents):,} parent 1km cells")
     return parents
 
 
 def run_stage_a(cfg) -> None:
     """Port of stage_a: downscale 10km -> 1km, writes cfg.out_1."""
     specs = build_new_topic_specs("1km", names=cfg.topics)
-    print(f"[stage_a] {len(specs)} topics: {[s.name for s in specs]}")
+    log.info(f"{len(specs)} topics: {[s.name for s in specs]}")
     if not specs:
         sys.exit("[stage_a] no specs matched topics; aborting")
 
@@ -153,7 +156,7 @@ def run_stage_a(cfg) -> None:
 
     cfg.outputs_dir.mkdir(parents=True, exist_ok=True)
     df1.to_parquet(cfg.out_1, index=False)
-    print(f"[stage_a] wrote {cfg.out_1} cols={len(df1.columns)}")
+    log.info(f"wrote {cfg.out_1} cols={len(df1.columns)}")
 
 
 def run_stage_b(cfg) -> None:
@@ -167,7 +170,7 @@ def run_stage_b(cfg) -> None:
     import pyarrow.parquet as pq
 
     specs = build_new_topic_specs("100m", names=cfg.topics)
-    print(f"[stage_b] {len(specs)} topics: {[s.name for s in specs]}")
+    log.info(f"{len(specs)} topics: {[s.name for s in specs]}")
     if not specs:
         sys.exit("[stage_b] no specs matched topics; aborting")
 
@@ -196,7 +199,7 @@ def run_stage_b(cfg) -> None:
         df1 = df1[df1["GITTER_ID_1km"].isin(parents)].copy()
         df100_min = df100_min[df100_min["GITTER_ID_1km"].isin(parents)].copy()
         df100_min.reset_index(drop=True, inplace=True)
-        print(f"[stage_b] subset: {len(df1)} parents, {len(df100_min)} cells")
+        log.info(f"subset: {len(df1)} parents, {len(df100_min)} cells")
 
     # orphan: the flag already exists; recompute defensively (OR them)
     p_1km = set(df1["GITTER_ID_1km"].unique())
@@ -250,7 +253,7 @@ def run_stage_b(cfg) -> None:
         # Subset mode: write the SUBSET frame directly (no streaming)
         out = cfg.out_100.with_name(cfg.out_100.stem + "_SUBSET.parquet")
         df100_min.to_parquet(out, index=False)
-        print(f"[stage_b] subset frame written to {out} (no streaming on subset runs)")
+        log.info(f"subset frame written to {out} (no streaming on subset runs)")
         return
 
     # National mode: stream-append to the full file
@@ -307,6 +310,6 @@ def run_stage_b(cfg) -> None:
     assert pos == len(df100_min), (
         f"row mismatch: streamed {pos} vs frame {len(df100_min)}"
     )
-    print(
-        f"[stage_b] wrote {cfg.out_100} (+{len(extra_fields)} new cols, {pos:,} rows)"
+    log.info(
+        f"wrote {cfg.out_100} (+{len(extra_fields)} new cols, {pos:,} rows)"
     )

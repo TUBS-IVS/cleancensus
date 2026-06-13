@@ -35,7 +35,6 @@ Output
 """
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -46,9 +45,10 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 
-log = logging.getLogger(__name__)
+log = get_logger("gemeinde")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -172,7 +172,7 @@ def _resolve_vg250(cfg) -> tuple[Path, str]:
             gpkg = _LOCAL_VG250
         elif _T_VG250.exists():
             log.warning(
-                "[gemeinde] VG250 local copy not found at %s; "
+                "VG250 local copy not found at %s; "
                 "falling back to T: path %s — consider copying with "
                 "'data/raw/vg250/DE_VG250.gpkg'",
                 _LOCAL_VG250,
@@ -196,7 +196,7 @@ def _resolve_vg250(cfg) -> tuple[Path, str]:
 
 def load_gemeinde_layer(gpkg_path: Path, layer: str) -> gpd.GeoDataFrame:
     """Load and prepare the Gemeinde GeoDataFrame (EPSG:25832 -> 3035)."""
-    log.info("[gemeinde] loading layer %r from %s", layer, gpkg_path)
+    log.info("loading layer %r from %s", layer, gpkg_path)
     gem = gpd.read_file(gpkg_path, layer=layer)
 
     if gem.crs is None:
@@ -211,7 +211,7 @@ def load_gemeinde_layer(gpkg_path: Path, layer: str) -> gpd.GeoDataFrame:
     gem = _add_ars_parts(gem, key_col)
     gem = gem[ARS_NEW_COLS + ["geometry"]].copy()
     _ = gem.sindex   # build spatial index once
-    log.info("[gemeinde] Gemeinde layer loaded: %d polygons", len(gem))
+    log.info("Gemeinde layer loaded: %d polygons", len(gem))
     return gem
 
 
@@ -227,7 +227,7 @@ def join_gemeinde_streaming(
     Reads cells_path in chunks of chunk_size rows, spatially joins each chunk
     against the pre-built Gemeinde spatial index, and appends to a ParquetWriter.
     """
-    log.info("[gemeinde] reading cells from %s", cells_path)
+    log.info("reading cells from %s", cells_path)
     cells_all = pd.read_parquet(cells_path)
 
     if CELLS_ID_COL not in cells_all.columns:
@@ -243,7 +243,7 @@ def join_gemeinde_streaming(
     schema: Optional[pa.Schema] = None
 
     n_rows = len(cells_all)
-    log.info("[gemeinde] streaming %d rows in chunks of %d", n_rows, chunk_size)
+    log.info("streaming %d rows in chunks of %d", n_rows, chunk_size)
 
     n_chunks = (n_rows + chunk_size - 1) // chunk_size
     for start in progress_iter(range(0, n_rows, chunk_size), "gemeinde/sjoin", total=n_chunks):
@@ -271,7 +271,7 @@ def join_gemeinde_streaming(
     if writer is not None:
         writer.close()
 
-    log.info("[gemeinde] wrote %s (%d rows)", out_path.name, n_rows)
+    log.info("wrote %s (%d rows)", out_path.name, n_rows)
 
 
 def run_gemeinde(cfg) -> None:

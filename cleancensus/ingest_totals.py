@@ -21,17 +21,18 @@ No randomness is used in this stage.  Results are deterministic.
 """
 from __future__ import annotations
 
-import logging
 import re
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
+from cleancensus.logsetup import get_logger
+
 if TYPE_CHECKING:
     from pathlib import Path
 
-log = logging.getLogger(__name__)
+log = get_logger("totals")
 
 # ---------------------------------------------------------------------------
 # Cell [2]: parent ID derivation
@@ -188,7 +189,7 @@ def collapse_population_totals(
         ct = pd.Series(cons_tie, index=df.index)
         unanimity = (cs == ctna) & (ctna > 0)
         log.info(
-            "[totals|%s] rows=%d unanimous=%d conflicts=%d ties=%d",
+            "%s: rows=%d unanimous=%d conflicts=%d ties=%d",
             level,
             len(df),
             int(unanimity.sum()),
@@ -263,7 +264,7 @@ def proportional_adjust_to_parent(
     )
 
     log.info(
-        "[totals] proportional adjust %s -> %s: max_scale=%.3f mean_scale=%.3f",
+        "proportional adjust %s -> %s: max_scale=%.3f mean_scale=%.3f",
         child_level,
         parent_level,
         float(factors.max()),
@@ -287,39 +288,39 @@ def run_totals(cfg) -> None:  # cfg: Config
     # ------------------------------------------------------------------
     inp10 = work / "merged_10km_gitter.parquet"
     out10 = work / "totals_10km.parquet"
-    log.info("[totals] loading %s", inp10)
+    log.info("loading %s", inp10)
     df10 = pd.read_parquet(inp10)
     df10, pop10 = collapse_population_totals(df10, "10km")
     df10.to_parquet(out10, index=False)
-    log.info("[totals] wrote %s  (rows=%d, col=%s)", out10.name, len(df10), pop10)
+    log.info("wrote %s  (rows=%d, col=%s)", out10.name, len(df10), pop10)
 
     # ------------------------------------------------------------------
     # 1km: collapse + adjust to 10km
     # ------------------------------------------------------------------
     inp1 = work / "merged_1km_gitter.parquet"
     out1 = work / "totals_1km.parquet"
-    log.info("[totals] loading %s", inp1)
+    log.info("loading %s", inp1)
     df1 = pd.read_parquet(inp1)
     add_parent_ids_for_level(df1, "1km")  # ensure GITTER_ID_10km present
     df1, pop1 = collapse_population_totals(df1, "1km")
     # adjust to 10km
     df1 = proportional_adjust_to_parent(df1, df10, "1km", "10km", pop1, pop10)
     df1.to_parquet(out1, index=False)
-    log.info("[totals] wrote %s  (rows=%d, col=%s)", out1.name, len(df1), pop1)
+    log.info("wrote %s  (rows=%d, col=%s)", out1.name, len(df1), pop1)
 
     # ------------------------------------------------------------------
     # 100m: collapse + adjust to 1km
     # ------------------------------------------------------------------
     inp100 = work / "merged_100m_gitter.parquet"
     out100 = work / "totals_100m.parquet"
-    log.info("[totals] loading %s", inp100)
+    log.info("loading %s", inp100)
     df100 = pd.read_parquet(inp100)
     add_parent_ids_for_level(df100, "100m")  # ensure GITTER_ID_1km and _10km
     df100, pop100 = collapse_population_totals(df100, "100m")
     # adjust to 1km (use updated df1 from above)
     df100 = proportional_adjust_to_parent(df100, df1, "100m", "1km", pop100, pop1)
     df100.to_parquet(out100, index=False)
-    log.info("[totals] wrote %s  (rows=%d, col=%s)", out100.name, len(df100), pop100)
+    log.info("wrote %s  (rows=%d, col=%s)", out100.name, len(df100), pop100)
 
 
 def totals_complete(cfg) -> bool:

@@ -30,13 +30,16 @@ required by the topics8/extend stage.
 from __future__ import annotations
 
 import re
-import warnings
 import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from cleancensus.logsetup import get_logger
+
 if TYPE_CHECKING:
     import pandas as pd
+
+log = get_logger("destatis")
 
 
 # ---------------------------------------------------------------------------
@@ -530,10 +533,7 @@ def merge_destatis_tables(level: str, raw_dir: str | Path) -> "pd.DataFrame | No
     for zip_name in progress_iter(all_zips, "destatis/tables", total=len(all_zips)):
         zip_path = raw_dir / zip_name
         if not zip_path.exists():
-            warnings.warn(
-                f"[destatis_csv] ZIP not found, skipping: {zip_path}",
-                stacklevel=2,
-            )
+            log.warning(f"ZIP not found, skipping: {zip_path}")
             continue
 
         try:
@@ -542,10 +542,7 @@ def merge_destatis_tables(level: str, raw_dir: str | Path) -> "pd.DataFrame | No
             else:
                 df = read_destatis_totals_zip(zip_path, level)
         except Exception as exc:
-            warnings.warn(
-                f"[destatis_csv] Failed to read {zip_name} for level={level!r}: {exc}",
-                stacklevel=2,
-            )
+            log.warning(f"Failed to read {zip_name} for level={level!r}: {exc}")
             continue
 
         found += 1

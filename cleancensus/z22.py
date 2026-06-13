@@ -37,28 +37,26 @@ Notes on unmapped T: features (z22data does not provide them):
   - Grosse_Kernfamilie_bis6undmehrPers: family_size categories – z11 only
   - Durchschn_Nettokaltmiete_Anzahl_der_Wohnungen: auxiliary count – not published in z22data
 
-Note on building_size vs dwelling_building_size (z22data feature names are INVERTED):
-  Systematic debugging (2026-06-11) established the ground truth with the
-  MFH_13undmehrWohnungen discriminator (buildings with 13+ dwellings are FEW,
-  dwellings in such buildings are MANY):
-    - T: merged CSVs are labelled CORRECTLY: Geb_* MFH_13+ = 237,542 (buildings),
-      Wohnung_* MFH_13+ = 5,224,648 (dwellings).
-    - z22data's FEATURE NAMES are inverted relative to their literal meaning:
-      'building_size'          actually contains DWELLINGS by building type
-                               (cat 1 sum 8,665,582 == T: FreiEFH_Wohnung_*, exact)
-      'dwelling_building_size' actually contains BUILDINGS by type
-                               (cat 1 sum 8,665,451 == T: FreiEFH_Geb_*, exact)
-      (most likely a translation mix-up of the two Destatis tables "Gebaeude mit
-      Wohnraum nach Gebaeudetyp/-groesse" vs "Wohnungen in Gebaeuden mit Wohnraum
-      nach Gebaeudetyp/-groesse" in the upstream z22 project).
-    CONFIRMED 2026-06-12 against the OFFICIAL Destatis Insgesamt totals (10km):
-      z22 'building_size' grand total          = 43,107,077 ≈ Destatis WOHNUNGEN 43,106,536
-      z22 'dwelling_building_size' grand total  = 19,957,238 ≈ Destatis GEBAEUDE  19,957,289
-      (Destatis "Gebaeude...nach Gebaeudetyp" Insgesamt_Gebaeude = 19,957,289;
-       "Wohnungen...nach Gebaeudetyp" Insgesamt_Wohnungen = 43,106,536.)
-  The FEATURE_MAP below therefore maps z22 'building_size' -> Wohnung_* columns and
-  'dwelling_building_size' -> Geb_* columns. This is SEMANTICALLY CORRECT — do not
-  "fix" it to match the literal z22 feature names (guarded by a regression test).
+Note on building_size vs dwelling_building_size (upstream swap, FIXED 2026-06-12):
+  z22data issue #4 (reported by us) confirmed the two feature names were swapped
+  relative to their contents. The MFH_13undmehrWohnungen discriminator pins the
+  ground truth (buildings with 13+ dwellings are FEW, dwellings in such buildings
+  are MANY); T: merged CSVs were always labelled CORRECTLY: Geb_* MFH_13+ = 237,542
+  (buildings), Wohnung_* MFH_13+ = 5,224,648 (dwellings).
+
+  The upstream "re-process 2022 data" commit (2026-06-12) corrected the swap, so the
+  z22data feature names now match their contents literally. VERIFIED 2026-06-13 against
+  the OFFICIAL Destatis Insgesamt totals (current upstream, 10km):
+    z22 'building_size'          grand total = 19,957,238 ≈ Destatis GEBAEUDE  19,957,289
+                                 cat 1 (FreiEFH) = 8,665,451 == T: FreiEFH_Geb_*, exact
+    z22 'dwelling_building_size' grand total = 43,107,077 ≈ Destatis WOHNUNGEN 43,106,536
+                                 cat 1 (FreiEFH) = 8,665,582 == T: FreiEFH_Wohnung_*, exact
+    (Destatis "Gebaeude...nach Gebaeudetyp" Insgesamt_Gebaeude = 19,957,289;
+     "Wohnungen...nach Gebaeudetyp" Insgesamt_Wohnungen = 43,106,536.)
+  The FEATURE_MAP below therefore now maps z22 'building_size' -> Geb_* columns and
+  'dwelling_building_size' -> Wohnung_* columns, matching the corrected upstream names.
+  Pre-2026-06-12 cached parquets carry the OLD (swapped) contents — delete and
+  re-download them so they agree with this mapping (guarded by a regression test).
 """
 from __future__ import annotations
 
@@ -68,8 +66,12 @@ import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from cleancensus.logsetup import get_logger
+
 if TYPE_CHECKING:
     import pandas as pd
+
+log = get_logger("merge")
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -182,31 +184,33 @@ FEATURE_MAP: dict[tuple[str, int], str] = {
     # ---- Buildings (Gebäude) -----------------------------------------------
     ("buildings", 0): "Insgesamt_Gebaeude_Gebaeude_nach_Baujahr_in_MZ_Klassen",
 
-    # z22 'building_size' ACTUALLY contains DWELLINGS by building type (z22data feature
-    # name is inverted — see module docstring). Wohnung_* targets are semantically correct.
-    ("building_size",  1): "FreiEFH_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  2): "EFH_DHH_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  3): "EFH_Reihenhaus_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  4): "Freist_ZFH_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  5): "ZFH_DHH_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  6): "ZFH_Reihenhaus_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  7): "MFH_3bis6Wohnungen_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  8): "MFH_7bis12Wohnungen_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size",  9): "MFH_13undmehrWohnungen_Wohnung_Gebaeudetyp_Groesse",
-    ("building_size", 10): "AndererGebaeudetyp_Wohnung_Gebaeudetyp_Groesse",
+    # z22 'building_size' contains BUILDINGS by type+size. The upstream feature-name
+    # swap (z22data issue #4) was FIXED in the 2026-06-12 re-process, so the name now
+    # matches its content literally — Geb_* targets are semantically correct.
+    ("building_size",  1): "FreiEFH_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  2): "EFH_DHH_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  3): "EFH_Reihenhaus_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  4): "Freist_ZFH_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  5): "ZFH_DHH_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  6): "ZFH_Reihenhaus_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  7): "MFH_3bis6Wohnungen_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  8): "MFH_7bis12Wohnungen_Geb_Gebaeudetyp_Groesse",
+    ("building_size",  9): "MFH_13undmehrWohnungen_Geb_Gebaeudetyp_Groesse",
+    ("building_size", 10): "AndererGebaeudetyp_Geb_Gebaeudetyp_Groesse",
 
-    # z22 'dwelling_building_size' ACTUALLY contains BUILDINGS by type+size (inverted
-    # z22data feature name — see module docstring). Geb_* targets are semantically correct.
-    ("dwelling_building_size",  1): "FreiEFH_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  2): "EFH_DHH_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  3): "EFH_Reihenhaus_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  4): "Freist_ZFH_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  5): "ZFH_DHH_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  6): "ZFH_Reihenhaus_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  7): "MFH_3bis6Wohnungen_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  8): "MFH_7bis12Wohnungen_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size",  9): "MFH_13undmehrWohnungen_Geb_Gebaeudetyp_Groesse",
-    ("dwelling_building_size", 10): "AndererGebaeudetyp_Geb_Gebaeudetyp_Groesse",
+    # z22 'dwelling_building_size' contains DWELLINGS by building type. After the
+    # 2026-06-12 upstream fix (issue #4) the name matches its content literally —
+    # Wohnung_* targets are semantically correct.
+    ("dwelling_building_size",  1): "FreiEFH_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  2): "EFH_DHH_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  3): "EFH_Reihenhaus_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  4): "Freist_ZFH_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  5): "ZFH_DHH_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  6): "ZFH_Reihenhaus_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  7): "MFH_3bis6Wohnungen_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  8): "MFH_7bis12Wohnungen_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size",  9): "MFH_13undmehrWohnungen_Wohnung_Gebaeudetyp_Groesse",
+    ("dwelling_building_size", 10): "AndererGebaeudetyp_Wohnung_Gebaeudetyp_Groesse",
 
     # buildings by number of dwellings (Gebäude nach Anzahl der Wohnungen)
     ("building_dwellings", 1): "1_Wohnung_Gebaeude_nach_Anzahl_der_Wohnungen",
@@ -521,19 +525,28 @@ def run_merge_z22(cfg) -> None:
     levels = ["10km", "1km", "100m"]
     for level in levels:
         raw_dir = cfg.inputs_dir.parent / "raw" / "z22" / level
-        print(f"[merge/z22] level={level}: downloading to {raw_dir} ...")
+        log.info(f"level={level}: downloading to {raw_dir} ...")
         download_z22(level, features, raw_dir)
 
-        print(f"[merge/z22] level={level}: building z22 merged table ...")
+        log.info(f"level={level}: building z22 merged table ...")
         df = build_merged_table(level, raw_dir)
 
         # ---- Destatis-CSV supplement ----------------------------------------
         destatis_dir = cfg.destatis_raw_dir
         if destatis_dir.exists():
-            print(f"[merge/z22] level={level}: ingesting Destatis-CSV supplement from {destatis_dir} ...")
+            log.info(f"level={level}: ingesting Destatis-CSV supplement from {destatis_dir} ...")
             destatis_df = merge_destatis_tables(level, destatis_dir)
             if destatis_df is not None:
                 gid_col = f"GITTER_ID_{level}"
+                # NOTE: z22data's `households` grid (Insgesamt_Haushalte_Groesse_des_
+                # privaten_Haushalts) was under-populated at fine resolutions (values
+                # zeroed for most cells) until JsLth/z22data took the totals directly
+                # from the official census totals (fixed 2026-06-13). The current upstream
+                # is dense and matches the official Destatis Insgesamt_Haushalte exactly
+                # (national 10km 40.24M / 1km 40.22M / 100m 39.62M, every cell populated),
+                # so z22 is the primary source again and wins the overlap below. Cache
+                # note: delete pre-2026-06-13 cached households_0 parquets so the corrected
+                # dense version is re-downloaded.
                 # collision guard: z22data already covers some supplement columns
                 # (e.g. family_type == Typ_der_Kernfamilie_nach_Kindern, gated EXACT)
                 # — a plain merge would produce _x/_y duplicate columns that crash
@@ -541,18 +554,18 @@ def run_merge_z22(cfg) -> None:
                 overlap = [c for c in destatis_df.columns
                            if c != gid_col and c in df.columns]
                 if overlap:
-                    print(f"[merge/z22] level={level}: dropping {len(overlap)} supplement "
-                          f"columns already provided by z22data (e.g. {overlap[0]})")
+                    log.info(f"level={level}: dropping {len(overlap)} supplement "
+                             f"columns already provided by z22data (e.g. {overlap[0]})")
                     destatis_df = destatis_df.drop(columns=overlap)
                 before = df.shape[1]
                 df = df.merge(destatis_df, on=gid_col, how="left")
                 added = df.shape[1] - before
-                print(f"[merge/z22] level={level}: added {added} Destatis-CSV columns")
+                log.info(f"level={level}: added {added} Destatis-CSV columns")
             else:
-                print(f"[merge/z22] level={level}: no Destatis ZIPs found in {destatis_dir}, skipping supplement")
+                log.warning(f"level={level}: no Destatis ZIPs found in {destatis_dir}, skipping supplement")
         else:
-            print(
-                f"[merge/z22] level={level}: {destatis_dir} not found — "
+            log.warning(
+                f"level={level}: {destatis_dir} not found — "
                 "Destatis supplement skipped (z22-only mode). "
                 "Copy the 6 ZIPs there to include the 6 missing topics."
             )
@@ -571,7 +584,7 @@ def run_merge_z22(cfg) -> None:
         out_path = cfg.work_dir / f"merged_{level}_gitter.parquet"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         pq.write_table(pa.Table.from_pandas(df), out_path)
-        print(f"[merge/z22] level={level}: wrote {out_path} ({len(df):,} rows, {df.shape[1]} cols)")
+        log.info(f"level={level}: wrote {out_path} ({len(df):,} rows, {df.shape[1]} cols)")
 
 
 def merge_complete(cfg) -> bool:

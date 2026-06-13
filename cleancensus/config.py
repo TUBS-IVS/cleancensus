@@ -5,6 +5,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from cleancensus import names
+
 
 @dataclass(frozen=True)
 class Config:
@@ -111,7 +113,7 @@ class Config:
         Otherwise falls back to cfg.path_10 (pickle in inputs_dir).
         """
         if self.stages.get("ages", False):
-            return self.work_dir / "df10_with_single_years.parquet"
+            return names.resolve(self.work_dir, names.work("ages", "10km"))
         return self.path_10
 
     @property
@@ -124,7 +126,7 @@ class Config:
         Otherwise falls back to cfg.path_1.
         """
         if self.stages.get("topics8", False):
-            return self.work_dir / "cells_1km_with_binneds.parquet"
+            return names.resolve(self.work_dir, names.work("topics8", "1km"))
         return self.path_1
 
     @property
@@ -137,10 +139,7 @@ class Config:
         Otherwise falls back to cfg.path_100.
         """
         if self.stages.get("regiostar", False):
-            return (
-                self.work_dir
-                / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
-            )
+            return names.resolve(self.work_dir, names.work("regiostar", "100m"))
         return self.path_100
 
     @property
@@ -153,11 +152,11 @@ class Config:
 
     @property
     def out_1(self) -> Path:
-        return self.outputs_dir / f"zensus2022_grid_1km_de_{self.version_tag}.parquet"
+        return self.outputs_dir / names.output("1km", self.version_tag)
 
     @property
     def out_100(self) -> Path:
-        return self.outputs_dir / f"zensus2022_grid_100m_de_{self.version_tag}.parquet"
+        return self.outputs_dir / names.output("100m", self.version_tag)
 
 
 # Data-producing stages, in execution order. The first 8 cover the full path from the

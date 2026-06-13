@@ -26,8 +26,11 @@ from cleancensus.harmonization import (
     downscale_topic,
     impute_orphan_rows_100m,
 )
+from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 from cleancensus.stages import DOWNSCALE_KW
+
+log = get_logger("topics8")
 
 
 # ---------------------------------------------------------------------------
@@ -46,9 +49,9 @@ def run_topics8_1km(df10_path: str | Path, df1_path: str | Path, out_1_path: str
 
     from cleancensus.stages import load_frame
 
-    print(f"[topics8-1km] reading {df10_path} ...")
+    log.info(f"reading {df10_path} ...")
     df10 = load_frame(df10_path).reset_index(drop=False)
-    print(f"[topics8-1km] reading {df1_path} ...")
+    log.info(f"reading {df1_path} ...")
     df1 = load_frame(df1_path).reset_index(drop=False)
 
     # Clean NaNs/±inf
@@ -66,9 +69,9 @@ def run_topics8_1km(df10_path: str | Path, df1_path: str | Path, out_1_path: str
     df1["GITTER_ID_10km"] = df1["GITTER_ID_10km"].astype(str).str.strip()
     df1["GITTER_ID_1km"] = df1["GITTER_ID_1km"].astype(str).str.strip()
 
-    print("[topics8-1km] building specs ...")
+    log.info("building specs ...")
     specs = build_topic_specs_for_level("1km")
-    print(f"[topics8-1km] {len(specs)} topics: {[s.name for s in specs]}")
+    log.info(f"{len(specs)} topics: {[s.name for s in specs]}")
 
     normalize_parent_categories_for_specs(
         parent_df=df10,
@@ -100,7 +103,7 @@ def run_topics8_1km(df10_path: str | Path, df1_path: str | Path, out_1_path: str
 
     out_1_path.parent.mkdir(parents=True, exist_ok=True)
     df1.to_parquet(out_1_path, index=False)
-    print(f"[topics8-1km] wrote {out_1_path} ({len(df1):,} rows, {len(df1.columns)} cols)")
+    log.info(f"wrote {out_1_path} ({len(df1):,} rows, {len(df1.columns)} cols)")
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +154,7 @@ def run_topics8_100m(
     _pq_avail = set(pq.ParquetFile(path_100).schema_arrow.names)
     needed_cols_100 = sorted(needed_cols_100 & _pq_avail)
 
-    print(f"[topics8-100m] reading {path_100} (cols={len(needed_cols_100)}) ...")
+    log.info(f"reading {path_100} (cols={len(needed_cols_100)}) ...")
     df100_min = pd.read_parquet(path_100, columns=needed_cols_100).reset_index(drop=False)
 
     # Clean + downcast
@@ -167,7 +170,7 @@ def run_topics8_100m(
         df1 = df1[df1["GITTER_ID_1km"].isin(parents)].copy()
         df100_min = df100_min[df100_min["GITTER_ID_1km"].isin(parents)].copy()
         df100_min.reset_index(drop=True, inplace=True)
-        print(f"[topics8-100m] subset: {len(df1):,} parent 1km cells, {len(df100_min):,} 100m cells")
+        log.info(f"subset: {len(df1):,} parent 1km cells, {len(df100_min):,} 100m cells")
 
     # Orphan flag: 100m cells whose 1km parent is not in df1
     p_1km = set(df1["GITTER_ID_1km"].unique())
@@ -175,7 +178,7 @@ def run_topics8_100m(
     df100_ok = df100_min.loc[~df100_min["is_orphan"]].copy()
     df1_ok = df1.loc[df1["GITTER_ID_1km"].isin(df100_ok["GITTER_ID_1km"])].copy()
 
-    print(f"[topics8-100m] non-orphan 100m cells: {len(df100_ok):,} | orphan: {df100_min['is_orphan'].sum():,}")
+    log.info(f"non-orphan 100m cells: {len(df100_ok):,} | orphan: {df100_min['is_orphan'].sum():,}")
 
     # Create *_adj totals and flip specs
     topics_100m = apply_adj_for_all_topics(
@@ -225,7 +228,7 @@ def run_topics8_100m(
     if parents is not None:
         # Subset mode: write in-memory directly
         df100_min.to_parquet(out_100_path, index=False)
-        print(f"[topics8-100m] subset wrote {out_100_path} ({len(df100_min):,} rows, {len(df100_min.columns)} cols)")
+        log.info(f"subset wrote {out_100_path} ({len(df100_min):,} rows, {len(df100_min.columns)} cols)")
         return
 
     # National mode: stream-append new columns onto path_100 -> out_100_path
@@ -290,7 +293,7 @@ def run_topics8_100m(
     assert pos == len(df100_min), (
         f"[topics8-100m] row mismatch: streamed {pos} vs frame {len(df100_min)}"
     )
-    print(f"[topics8-100m] wrote {out_100_path} (+{len(extra_fields)} new cols, {pos:,} rows)")
+    log.info(f"wrote {out_100_path} (+{len(extra_fields)} new cols, {pos:,} rows)")
 
 
 # ---------------------------------------------------------------------------
@@ -320,27 +323,26 @@ def run_topics8(cfg) -> None:
     out_1 = work_dir / "cells_1km_with_binneds.parquet"
     out_100 = work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
 
-    print(f"[topics8] work_dir={work_dir}")
+    log.info(f"work_dir={work_dir}")
+
+    # NOTE: no internal skip-if-exists here. The pipeline runner already gates this
+    # stage via is_complete()/--force; an internal `if not out.exists()` guard would
+    # silently IGNORE --force and reuse stale outputs (it did, masking a regression on
+    # 2026-06-13). When the pipeline decides to run topics8, always rebuild both passes.
 
     # 1km pass
-    if not out_1.exists():
-        print("[topics8] running 1km pass ...")
-        run_topics8_1km(df10_path, df1_pickle, out_1)
-    else:
-        print(f"[topics8] 1km output exists, skipping: {out_1}")
+    log.info("running 1km pass ...")
+    run_topics8_1km(df10_path, df1_pickle, out_1)
 
     # 100m pass
     parents = build_subset_parents(cfg) if cfg.mode == "subset" else None
 
     if parents is not None:
         subset_out = out_100.with_name(out_100.stem + "_SUBSET.parquet")
-        print(f"[topics8] running 100m subset pass -> {subset_out}")
+        log.info(f"running 100m subset pass -> {subset_out}")
         run_topics8_100m(out_1, path_100, subset_out, parents=parents)
     else:
-        if not out_100.exists():
-            print("[topics8] running 100m national pass ...")
-            run_topics8_100m(out_1, path_100, out_100, parents=None)
-        else:
-            print(f"[topics8] 100m output exists, skipping: {out_100}")
+        log.info("running 100m national pass ...")
+        run_topics8_100m(out_1, path_100, out_100, parents=None)
 
-    print("[topics8] done.")
+    log.info("done.")
