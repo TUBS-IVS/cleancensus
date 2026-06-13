@@ -70,24 +70,27 @@ prepared-mode operation.
 
 When running with one or more raw→prepared stages enabled, the pipeline writes intermediate
 files to `data/work/` (the `work_dir` sibling of `inputs_dir`, gitignored).  Each stage reads
-the previous stage's file and appends its output.
+the previous stage's file and appends its output. File names follow a stage-numbered scheme
+`NN_<stage>_<level>.parquet` (managed centrally in `cleancensus/names.py`). Pre-existing files
+under the old notebook-era names are still read as legacy aliases, so older work_dir artifacts
+continue to resolve.
 
 | work_dir file | Written by | Content |
 |---|---|---|
-| `merged_10km_gitter.parquet` | `merge` | Wide table at 10 km; one column per FEATURE_MAP entry (160 columns + 3 coordinate cols) |
-| `merged_1km_gitter.parquet` | `merge` | Same at 1 km |
-| `merged_100m_gitter.parquet` | `merge` | Same at 100 m |
-| `totals_10km.parquet` | `totals` | 10 km cells + `POP_TOTAL_10km` consensus column |
-| `totals_1km.parquet` | `totals` | 1 km cells + `POP_TOTAL_1km` + `scale` (adjustment factor) |
-| `totals_100m.parquet` | `totals` | 100 m cells + `POP_TOTAL_100m` + `scale` |
-| `df10_with_single_years.parquet` | `ages` | 10 km cells + `AGE_0`..`AGE_100` |
-| `df1_with_single_years.parquet` | `ages` | 1 km cells + `AGE_0`..`AGE_100` |
-| `df100_with_single_years.parquet` | `ages` | 100 m cells + `AGE_0`..`AGE_100` + `is_orphan` flag |
-| `cells_100m_with_gemeinde.parquet` | `gemeinde` | 100 m cells + ARS sub-fields (Land, Kreis, Gemeinde, …) |
-| `cells_100m_with_gender_backfilled.parquet` | `gender` | + `M_AGE_0`..`M_AGE_100`, `F_AGE_0`..`F_AGE_100`, `M_TOTAL`, `F_TOTAL` |
-| `cells_100m_with_gender_backf_binneds_happyorphans.parquet` | `topics8` | + 8 harmonized categorical topics (`*_adj` totals + category columns) |
-| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs.parquet` | `aggs` | + decade-binned age aggregates (`M_AGE_0_9_agg`…`F_AGE_80_plus_agg`, `AGE_*_agg`) |
-| `cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet` | `regiostar` | + RegioStaR columns (`RegioStaR2`, `RegioStaR4`, `RegioStaR17`, `RegioStaR7`, `RegioStaR5`, `RegioStaRGem7`, `RegioStaRGem5`) — this file is the final prepared input |
+| `01_merge_10km.parquet` | `merge` | Wide table at 10 km; one column per FEATURE_MAP entry (160 columns + 3 coordinate cols) |
+| `01_merge_1km.parquet` | `merge` | Same at 1 km |
+| `01_merge_100m.parquet` | `merge` | Same at 100 m |
+| `02_totals_10km.parquet` | `totals` | 10 km cells + `POP_TOTAL_10km` consensus column |
+| `02_totals_1km.parquet` | `totals` | 1 km cells + `POP_TOTAL_1km` + `scale` (adjustment factor) |
+| `02_totals_100m.parquet` | `totals` | 100 m cells + `POP_TOTAL_100m` + `scale` |
+| `03_ages_10km.parquet` | `ages` | 10 km cells + `AGE_0`..`AGE_100` |
+| `03_ages_1km.parquet` | `ages` | 1 km cells + `AGE_0`..`AGE_100` |
+| `03_ages_100m.parquet` | `ages` | 100 m cells + `AGE_0`..`AGE_100` + `is_orphan` flag |
+| `04_gemeinde_100m.parquet` | `gemeinde` | 100 m cells + ARS sub-fields (Land, Kreis, Gemeinde, …) |
+| `05_gender_100m.parquet` | `gender` | + `M_AGE_0`..`M_AGE_100`, `F_AGE_0`..`F_AGE_100`, `M_TOTAL`, `F_TOTAL` |
+| `06_topics8_100m.parquet` | `topics8` | + 8 harmonized categorical topics (`*_adj` totals + category columns); 1 km counterpart `06_topics8_1km.parquet` |
+| `07_aggs_100m.parquet` | `aggs` | + decade-binned age aggregates (`M_AGE_0_9_agg`…`F_AGE_80_plus_agg`, `AGE_*_agg`) |
+| `08_regiostar_100m.parquet` | `regiostar` | + RegioStaR columns (`RegioStaR2`, `RegioStaR4`, `RegioStaR17`, `RegioStaR7`, `RegioStaR5`, `RegioStaRGem7`, `RegioStaRGem5`) — this file is the final prepared input |
 
 ### Column naming convention
 

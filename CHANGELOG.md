@@ -13,6 +13,20 @@ Dates are the date the run was validated or the version was released.
 
 ## [Unreleased] — Gemeinde controls, Destatis supplement, RegioStaR BBSR 2022, vacancy topic
 
+### Pipeline polish: unified logging, file-name registry, banner
+
+- Central `cleancensus/logsetup.py`: stdlib logging with a colorized formatter
+  (`HH:MM:SS │ LEVEL │ stage │ message`) that auto-falls back to plain output when stdout
+  is redirected to a file; per-stage loggers throughout.
+- All ad-hoc `print("[tag] …")` calls removed in favour of the per-stage loggers.
+- New CLI flags `--verbose`/`-v` (DEBUG) and `--quiet`/`-q` (WARNING); default level INFO.
+- `cleancensus/report.py`: an elegant startup banner (resolved config + enabled stages) and a
+  closing run-summary box (per-stage timings, output row counts, sanity result).
+- `cleancensus/names.py`: single source of truth for file names. work_dir intermediates use a
+  stage-numbered scheme `NN_<stage>_<level>.parquet` (`01_merge_…` … `08_regiostar_100m`);
+  every renamed file keeps a legacy read-alias so pre-existing artifacts still resolve.
+- Public INPUT (`*_de_prepared.parquet`) and OUTPUT (`*_de_{tag}.parquet`) schemas are unchanged.
+
 ### z22data `households` grid is defective at 1km/100m — use official Destatis totals
 
 - z22data's `households` feature (`Insgesamt_Haushalte_Groesse_des_privaten_Haushalts`) is

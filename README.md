@@ -153,6 +153,15 @@ Two external files are required for the `gemeinde` and `gender` stages:
 
 > **Per-stage E2E status:** all 12 stage gates passed (see [Validated reference results](#validated-reference-results)). A full-chain national run is currently in final validation.
 
+### Logging & CLI output
+
+Every run opens with a startup banner (resolved config, enabled stages) and closes with a
+run-summary box (per-stage timings, output row counts, sanity result). Log lines use a
+unified format `HH:MM:SS │ LEVEL │ stage │ message` — colorized on a terminal, auto-plain
+when redirected to a file. Verbosity defaults to **INFO**; pass `--verbose`/`-v` for DEBUG
+or `--quiet`/`-q` for WARNING-and-above. The banner and summary box live in
+`cleancensus/report.py`; logging is configured centrally in `cleancensus/logsetup.py`.
+
 ---
 
 ## 🗂️ Data universes
@@ -300,6 +309,8 @@ Full documentation: [`docs/CONFIG.md`](docs/CONFIG.md).
 | `--from STAGE` | Run from this stage onward; treat earlier enabled stages as cached |
 | `--gemeinde-controls` | Parse Regionaltabellen P2/P4 into Gemeinde-level control parquets; skips all pipeline stages |
 | `--fill {none,harmonize}` | Suppression handling for Gemeinde tables (requires `--gemeinde-controls`) |
+| `--verbose`, `-v` | Increase log verbosity to DEBUG (default: INFO) |
+| `--quiet`, `-q` | Reduce log verbosity to WARNING and above |
 
 ---
 
