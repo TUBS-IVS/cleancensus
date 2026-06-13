@@ -268,7 +268,7 @@ def load_age_csv_to_matrices(path: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd
     text, sep = _read_text_utf8(path, prefer_sep=";")
     raw = _read_csv_anycols(text, sep)
     raw = raw.dropna(how="all", axis=0).dropna(how="all", axis=1).reset_index(drop=True)
-    raw = raw.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    raw = raw.map(lambda x: x.strip() if isinstance(x, str) else x)
 
     bounds, first_data_row = _find_block_bounds(raw)
     schema = _build_geo_schema(raw, first_data_row)
@@ -489,6 +489,13 @@ def backfill_orphans(
             S_age[j, :] = v / den if den > 0 else nat_age_share
         else:
             S_age[j, :] = nat_age_share
+
+    # Pre-cast the partial-assign target columns to float64 so the .loc backfills below
+    # don't emit pandas' incompatible-dtype FutureWarning. float64 is exactly the dtype
+    # the assignments already upcast these columns to today, so the values are unchanged.
+    _bf_cols = [*AGE_COLS, *M_COLS, *F_COLS, "M_TOTAL", "F_TOTAL"]
+    _bf_cols = [c for c in _bf_cols if c in cells.columns]
+    cells[_bf_cols] = cells[_bf_cols].astype(np.float64)
 
     ages_off = pop[off_idx][:, None] * S_age
     cells.loc[cells.index[off_idx], AGE_COLS] = ages_off
