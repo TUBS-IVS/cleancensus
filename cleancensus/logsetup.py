@@ -54,8 +54,20 @@ class ColorFormatter(logging.Formatter):
         return f"{ts} │ {level:<7} │ {stage:<10} │ {msg}"
 
 
+def _force_utf8_streams() -> None:
+    """Make stdout/stderr emit UTF-8 so box-drawing/✓/→ never raise on Windows
+    (cp1252) consoles or redirected log files. Best-effort; ignored if unsupported.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def setup_logging(level: str = "INFO", color="auto") -> None:
     """Configure the ``cleancensus`` logger once (idempotent)."""
+    _force_utf8_streams()
     root = logging.getLogger(_ROOT)
     root.setLevel(getattr(logging, str(level).upper(), logging.INFO))
     root.propagate = False
