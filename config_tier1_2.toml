@@ -1,0 +1,29 @@
+# National production harmonization scope = Tier 1+2 (9 topics). The full _adj catalog for
+# the eqasim-bs control workflows (building/dwelling + household composition + citizenship).
+# Sanity auto-validates sum(cats)==adj for all 9.
+
+[data]
+version_tag = "v3_tier1_2"
+
+[harmonize]
+tiers = [1, 2]
+derived_tenure = true
+derived_vacancy = true
+
+[scope]
+mode = "national"
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true
+totals    = true
+ages      = true
+gemeinde  = true
+gender    = true
+topics8   = true
+aggs      = true
+regiostar = true
+extend    = true

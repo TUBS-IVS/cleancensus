@@ -46,6 +46,20 @@ def test_specs_exist_in_1km_schema():
         assert spec.child_row_total_col.replace("_100m-Gitter", "_1km-Gitter") in cols, spec.name
 
 
+def test_tier_1_2_resolves_to_nine_topics():
+    specs_100 = build_new_topic_specs("100m", tiers=(1, 2))
+    specs_1km = build_new_topic_specs("1km", tiers=(1, 2))
+    assert len(specs_100) == 9
+    assert len(specs_1km) == 9
+    names = {s.name for s in specs_100}
+    assert {"Geb_Gebaeudetyp", "Geb_AnzahlWohnungen", "Geb_Baujahr", "Geb_Energietraeger",
+            "Whg_Gebaeudetyp", "Whg_Heizungsart",
+            "HH_Seniorenstatus", "HH_Familientyp", "Pers_Staatsangehoerigkeit"} == names
+    for s in specs_100:
+        assert s.child_row_total_col.endswith("_100m-Gitter")
+        assert len(s.child_cat_cols) >= 2
+
+
 def test_unknown_topic_name_raises():
     with pytest.raises(ValueError, match="Unknown topic names"):
         build_new_topic_specs("100m", names=["Nope_NotATopic"])
