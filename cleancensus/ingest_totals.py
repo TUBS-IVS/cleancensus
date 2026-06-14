@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
+from cleancensus import names
 from cleancensus.logsetup import get_logger
 
 if TYPE_CHECKING:
@@ -286,8 +287,8 @@ def run_totals(cfg) -> None:  # cfg: Config
     # ------------------------------------------------------------------
     # 10km: collapse only (no parent)
     # ------------------------------------------------------------------
-    inp10 = work / "merged_10km_gitter.parquet"
-    out10 = work / "totals_10km.parquet"
+    inp10 = names.resolve(work, names.work("merge", "10km"))
+    out10 = work / names.work("totals", "10km")
     log.info("loading %s", inp10)
     df10 = pd.read_parquet(inp10)
     df10, pop10 = collapse_population_totals(df10, "10km")
@@ -297,8 +298,8 @@ def run_totals(cfg) -> None:  # cfg: Config
     # ------------------------------------------------------------------
     # 1km: collapse + adjust to 10km
     # ------------------------------------------------------------------
-    inp1 = work / "merged_1km_gitter.parquet"
-    out1 = work / "totals_1km.parquet"
+    inp1 = names.resolve(work, names.work("merge", "1km"))
+    out1 = work / names.work("totals", "1km")
     log.info("loading %s", inp1)
     df1 = pd.read_parquet(inp1)
     add_parent_ids_for_level(df1, "1km")  # ensure GITTER_ID_10km present
@@ -311,8 +312,8 @@ def run_totals(cfg) -> None:  # cfg: Config
     # ------------------------------------------------------------------
     # 100m: collapse + adjust to 1km
     # ------------------------------------------------------------------
-    inp100 = work / "merged_100m_gitter.parquet"
-    out100 = work / "totals_100m.parquet"
+    inp100 = names.resolve(work, names.work("merge", "100m"))
+    out100 = work / names.work("totals", "100m")
     log.info("loading %s", inp100)
     df100 = pd.read_parquet(inp100)
     add_parent_ids_for_level(df100, "100m")  # ensure GITTER_ID_1km and _10km
@@ -326,6 +327,6 @@ def run_totals(cfg) -> None:  # cfg: Config
 def totals_complete(cfg) -> bool:
     work = cfg.work_dir
     return all(
-        (work / f"totals_{lvl}.parquet").exists()
+        names.resolve(work, names.work("totals", lvl)).exists()
         for lvl in ("10km", "1km", "100m")
     )

@@ -45,6 +45,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from cleancensus import names
 from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 
@@ -279,8 +280,8 @@ def run_gemeinde(cfg) -> None:
     work = cfg.work_dir
     work.mkdir(parents=True, exist_ok=True)
 
-    cells_in  = work / "df100_with_single_years.parquet"
-    cells_out = work / "cells_100m_with_gemeinde.parquet"
+    cells_in  = names.resolve(work, names.work("ages", "100m"))
+    cells_out = work / names.work("gemeinde", "100m")
 
     gpkg_path, gpkg_layer = _resolve_vg250(cfg)
     gem = load_gemeinde_layer(gpkg_path, gpkg_layer)
@@ -289,4 +290,4 @@ def run_gemeinde(cfg) -> None:
 
 
 def gemeinde_complete(cfg) -> bool:
-    return (cfg.work_dir / "cells_100m_with_gemeinde.parquet").exists()
+    return names.resolve(cfg.work_dir, names.work("gemeinde", "100m")).exists()
