@@ -26,6 +26,7 @@ from cleancensus.harmonization import (
     downscale_topic,
     impute_orphan_rows_100m,
 )
+from cleancensus import names
 from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 from cleancensus.stages import DOWNSCALE_KW
@@ -312,16 +313,12 @@ def run_topics8(cfg) -> None:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     # the ages stage writes parquet; legacy gate runs used T:-era pickles —
-    # prefer the parquet if present (load_frame dispatches on suffix)
-    def _pick(stem: str):
-        pq_path = work_dir / f"{stem}.parquet"
-        return pq_path if pq_path.exists() else work_dir / f"{stem}.pickle"
-
-    df10_path = _pick("df10_with_single_years")
-    df1_pickle = _pick("df1_with_single_years")
-    path_100 = work_dir / "cells_100m_with_gender_backfilled.parquet"
-    out_1 = work_dir / "cells_1km_with_binneds.parquet"
-    out_100 = work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
+    # names.resolve picks the new name, then any legacy alias (incl. .pickle)
+    df10_path = names.resolve(work_dir, names.work("ages", "10km"))
+    df1_pickle = names.resolve(work_dir, names.work("ages", "1km"))
+    path_100 = names.resolve(work_dir, names.work("gender", "100m"))
+    out_1 = work_dir / names.work("topics8", "1km")
+    out_100 = work_dir / names.work("topics8", "100m")
 
     log.info(f"work_dir={work_dir}")
 

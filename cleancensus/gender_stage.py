@@ -44,6 +44,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from cleancensus import names
 from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 
@@ -591,8 +592,8 @@ def run_gender(cfg) -> None:
     work = cfg.work_dir
     work.mkdir(parents=True, exist_ok=True)
 
-    cells_in  = work / "cells_100m_with_gemeinde.parquet"
-    cells_out = work / "cells_100m_with_gender_backfilled.parquet"
+    cells_in  = names.resolve(work, names.work("gemeinde", "100m"))
+    cells_out = work / names.work("gender", "100m")
     log_out   = work / "backfilled_rows_log.csv"
 
     # --- 1) Load reference data ---
@@ -619,4 +620,4 @@ def run_gender(cfg) -> None:
 
 
 def gender_complete(cfg) -> bool:
-    return (cfg.work_dir / "cells_100m_with_gender_backfilled.parquet").exists()
+    return names.resolve(cfg.work_dir, names.work("gender", "100m")).exists()

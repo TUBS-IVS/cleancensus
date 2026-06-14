@@ -66,6 +66,7 @@ import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from cleancensus import names
 from cleancensus.logsetup import get_logger
 
 if TYPE_CHECKING:
@@ -581,7 +582,7 @@ def run_merge_z22(cfg) -> None:
                 f"[merge/z22] level={level}: non-numeric data columns after merge "
                 f"(first 5): {bad[:5]} — refusing to write a corrupt merged table")
 
-        out_path = cfg.work_dir / f"merged_{level}_gitter.parquet"
+        out_path = cfg.work_dir / names.work("merge", level)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         pq.write_table(pa.Table.from_pandas(df), out_path)
         log.info(f"level={level}: wrote {out_path} ({len(df):,} rows, {df.shape[1]} cols)")
@@ -590,6 +591,6 @@ def run_merge_z22(cfg) -> None:
 def merge_complete(cfg) -> bool:
     """Return True if all three merged parquets exist in work_dir."""
     return all(
-        (cfg.work_dir / f"merged_{level}_gitter.parquet").exists()
+        names.resolve(cfg.work_dir, names.work("merge", level)).exists()
         for level in ("10km", "1km", "100m")
     )

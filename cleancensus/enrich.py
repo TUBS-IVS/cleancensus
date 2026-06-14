@@ -34,6 +34,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from cleancensus import names
 from cleancensus.config import Config
 from cleancensus.logsetup import get_logger
 
@@ -149,21 +150,21 @@ def _ars_to_ags8(ars: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _aggs_input(cfg: Config) -> Path:
-    """The predecessor parquet that run_aggs reads (output of the gender stage)."""
-    return cfg.work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
+    """The predecessor parquet that run_aggs reads (output of the topics8 stage)."""
+    return names.resolve(cfg.work_dir, names.work("topics8", "100m"))
 
 
 def _aggs_output(cfg: Config) -> Path:
-    return cfg.work_dir / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs.parquet"
+    return cfg.work_dir / names.work("aggs", "100m")
 
 
 def _regiostar_input(cfg: Config) -> Path:
     """The predecessor parquet that run_regiostar reads (output of the aggs stage)."""
-    return _aggs_output(cfg)
+    return names.resolve(cfg.work_dir, names.work("aggs", "100m"))
 
 
 def _regiostar_output(cfg: Config) -> Path:
-    return cfg.work_dir / "cells_100m_with_gender_backf_binneds_happyorphans_with_aggs_regiostar.parquet"
+    return cfg.work_dir / names.work("regiostar", "100m")
 
 
 # ---------------------------------------------------------------------------
@@ -504,17 +505,17 @@ def run_regiostar(cfg: Config) -> None:
 
 def aggs_complete(cfg: Config) -> bool:
     """True if the aggs output file exists with at least one agg column."""
-    out = _aggs_output(cfg)
+    out = names.resolve(cfg.work_dir, names.work("aggs", "100m"))
     if not out.exists():
         return False
-    names = set(pq.read_schema(out).names)
-    return "M_AGE_0_9_agg" in names
+    col_names = set(pq.read_schema(out).names)
+    return "M_AGE_0_9_agg" in col_names
 
 
 def regiostar_complete(cfg: Config) -> bool:
     """True if the regiostar output file exists with at least one RegioStaR column."""
-    out = _regiostar_output(cfg)
+    out = names.resolve(cfg.work_dir, names.work("regiostar", "100m"))
     if not out.exists():
         return False
-    names = set(pq.read_schema(out).names)
-    return "RegioStaR2" in names
+    col_names = set(pq.read_schema(out).names)
+    return "RegioStaR2" in col_names

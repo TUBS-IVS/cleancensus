@@ -30,6 +30,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from cleancensus import names
 from cleancensus.logsetup import get_logger
 from cleancensus.progress import progress_iter
 
@@ -654,9 +655,9 @@ def run_ages(cfg) -> None:  # cfg: Config
     # Load totals outputs
     # ------------------------------------------------------------------
     log.info("loading totals parquets")
-    df10_raw = pd.read_parquet(work / "totals_10km.parquet")
-    df1_raw  = pd.read_parquet(work / "totals_1km.parquet")
-    df100_raw = pd.read_parquet(work / "totals_100m.parquet")
+    df10_raw = pd.read_parquet(names.resolve(work, names.work("totals", "10km")))
+    df1_raw  = pd.read_parquet(names.resolve(work, names.work("totals", "1km")))
+    df100_raw = pd.read_parquet(names.resolve(work, names.work("totals", "100m")))
 
     # Global hygiene: NaN/±inf -> 0 (exactly as notebook cell [6])
     df10 = df10_raw.replace([np.inf, -np.inf], np.nan).fillna(0)
@@ -678,7 +679,7 @@ def run_ages(cfg) -> None:  # cfg: Config
     df10_with_ages = df10_with_ages.rename(columns={i: f"AGE_{i}" for i in ages_per_cell.columns})
     df10_with_ages[f"{POP_COL_10KM}_adj"] = adjusted_cell_totals
 
-    out10 = work / "df10_with_single_years.parquet"
+    out10 = work / names.work("ages", "10km")
     df10_with_ages.to_parquet(out10)
     log.info("wrote %s  (rows=%d)", out10.name, len(df10_with_ages))
 
@@ -726,7 +727,7 @@ def run_ages(cfg) -> None:  # cfg: Config
     )
 
     df1_with_ages = df1.join(ages_1km)
-    out1 = work / "df1_with_single_years.parquet"
+    out1 = work / names.work("ages", "1km")
     df1_with_ages.to_parquet(out1)
     log.info("wrote %s  (rows=%d)", out1.name, len(df1_with_ages))
 
@@ -771,7 +772,7 @@ def run_ages(cfg) -> None:  # cfg: Config
     )
 
     df100_with_ages = df100.join(ages_100m_ok)
-    out100 = work / "df100_with_single_years.parquet"
+    out100 = work / names.work("ages", "100m")
     df100_with_ages.to_parquet(out100)
     log.info("wrote %s  (rows=%d)", out100.name, len(df100_with_ages))
 
@@ -779,6 +780,6 @@ def run_ages(cfg) -> None:  # cfg: Config
 def ages_complete(cfg) -> bool:
     work = cfg.work_dir
     return all(
-        (work / f"df{n}_with_single_years.parquet").exists()
-        for n in ("10", "1", "100")
+        names.resolve(work, names.work("ages", lvl)).exists()
+        for lvl in ("10km", "1km", "100m")
     )

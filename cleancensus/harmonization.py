@@ -266,6 +266,8 @@ def downscale_topic(
 
     parent_sum_0_counter = 0
     diffcouter = 0
+    rescaled_counter = 0
+    max_rescale_rel = 0.0
     for pid, cdf in tqdm(child_df.groupby(child_parent_id_col, sort=False, group_keys=False),
                          disable=not verbose):
 
@@ -303,7 +305,11 @@ def downscale_topic(
                 # tiny numeric drift -> silent rescale
                 t *= Psum / max(Tsum, 1e-30)
             elif rel <= 1e-4:
-                log.warning(f"adjust row mass by {rel:.2e} for {pid}")
+                # negligible per-cell margin drift — count it and summarise once at the
+                # end of the topic instead of emitting a line per cell (DEBUG only).
+                rescaled_counter += 1
+                max_rescale_rel = max(max_rescale_rel, rel)
+                log.debug("adjust row mass by %.2e for %s", rel, pid)
                 t *= Psum / max(Tsum, 1e-30)
             else:
                 raise AssertionError(
@@ -366,8 +372,13 @@ def downscale_topic(
                 if not np.allclose(X.sum(axis=0), p, rtol=0.02, atol=0):
                     log.debug("WARNING: rel difference > 0.02")
 
-    log.debug(f"Diffcouter: {diffcouter}")
-    log.debug(f"Parent sum 0: {parent_sum_0_counter} out of {len(parent_map)}")
+    # one compact diagnostic summary per topic (DEBUG) instead of per-cell spam
+    log.debug(
+        "%s downscale: %d parents · rescaled %d cells (max Δ %.1e) · "
+        "%d empty-parent · %d cells with >0.01 child-sum drift",
+        getattr(spec, "name", "?"), len(parent_map), rescaled_counter,
+        max_rescale_rel, parent_sum_0_counter, diffcouter,
+    )
     return out
 
 

@@ -31,6 +31,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from cleancensus import names
 from cleancensus.config import Config
 from cleancensus.logsetup import get_logger
 
@@ -182,7 +183,7 @@ def _run_topics8(cfg: Config):
 
 
 def _topics8_complete(cfg: Config) -> bool:
-    out_100 = cfg.work_dir / "cells_100m_with_gender_backf_binneds_happyorphans.parquet"
+    out_100 = names.resolve(cfg.work_dir, names.work("topics8", "100m"))
     return out_100.exists()
 
 
