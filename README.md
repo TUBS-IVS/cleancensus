@@ -74,9 +74,32 @@ total at every resolution.
 
 ## 🧭 What the output looks like
 
-![Six computed attributes at 100 m resolution — Braunschweig region (50 × 50 km)](docs/assets/attribute_gallery.png)
+Six attributes computed end-to-end by the pipeline, shown for the **Braunschweig region** (50 × 50 km window, 100 m cells; the city Kreis is outlined in cyan, with a 10 km scale bar):
 
-*Six attributes computed by the pipeline for the Braunschweig region (50 × 50 km window, 100 m cells). Every panel is derived or harmonized end-to-end: gender split from GENESIS per-Gemeinde shares (panel 1), senior-household status from Seniorenstatus harmonization (panel 2), dwelling-type distribution from Wohnung_Gebaeudetyp_Groesse harmonization (panel 3), tenure from the derived Eigentuemerquote stage (panel 4), vacancy from the derived Leerstandsquote stage (panel 5), and mean household size from harmonized totals (panel 6). Any region can be rendered via `python tools/make_attribute_gallery.py --window-ars <ARS5>` (default: 03101 = Braunschweig).*
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/gallery/01_male_share.png" width="100%" alt="Share of men — men as a fraction of all residents"></td>
+    <td width="50%"><img src="docs/assets/gallery/02_senior_only_households.png" width="100%" alt="Senior-only households — households where everyone is 65 or older"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/gallery/03_multifamily_dwellings.png" width="100%" alt="Homes in apartment buildings — dwellings in buildings with 3 or more units"></td>
+    <td width="50%"><img src="docs/assets/gallery/04_home_ownership.png" width="100%" alt="Home ownership — households that own their home"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/gallery/05_vacancy_rate.png" width="100%" alt="Vacant homes — share of dwellings standing empty"></td>
+    <td width="50%"><img src="docs/assets/gallery/06_mean_household_size.png" width="100%" alt="Average household size — people per private household"></td>
+  </tr>
+</table>
+
+*Every panel is derived or harmonized end-to-end: gender split from GENESIS per-Gemeinde shares, senior-household status (Seniorenstatus), dwelling-type distribution (Wohnung_Gebaeudetyp_Groesse), tenure (Eigentuemerquote), vacancy (Leerstandsquote) and mean household size — all from the harmonized 100 m grid, on fixed reproducible colour scales. Any region: `python tools/make_attribute_gallery.py --window-ars <ARS5>` (default: 03101 = Braunschweig).*
+
+### Regional variation across Germany
+
+Zoomed out to all of Germany (5 km bins), the same harmonized attributes reveal clear regional structure — a sharp east/west divide in vacancy and a south/north, rural/urban gradient in household size:
+
+![Regional variation across Germany — vacant homes and average household size](docs/assets/gallery/attribute_gallery_macro.png)
+
+*Regenerate via `python tools/make_attribute_gallery.py --macro`; pick other attributes with `--macro-attrs vacancy,home_ownership,senior_only,mfh,male_share,mean_hh_size` or focus on the north with `--macro-region north`.*
 
 ---
 
