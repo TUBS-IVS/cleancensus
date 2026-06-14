@@ -9,11 +9,39 @@ Provides:
 from __future__ import annotations
 
 import json
+import os
+import sys
 import time
 from pathlib import Path
 from typing import Iterable, Iterator, TypeVar
 
 T = TypeVar("T")
+
+# ---------------------------------------------------------------------------
+# Fancy (TTY) bar rendering — colour + partial-block precision + spinner.
+# Used ONLY when stdout is a real terminal; redirected/piped output keeps the
+# plain, greppable lines below so log files stay clean.
+# ---------------------------------------------------------------------------
+
+_PARTIALS = "▏▎▍▌▋▊▉"   # 1/8 .. 7/8 block
+_SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+_CYAN, _DIM, _BOLD, _RESET = "\x1b[36m", "\x1b[2m", "\x1b[1m", "\x1b[0m"
+
+
+def _stdout_is_tty() -> bool:
+    if os.environ.get("NO_COLOR"):
+        return False
+    return bool(getattr(sys.stdout, "isatty", lambda: False)())
+
+
+def _bar(frac: float, width: int = 22) -> str:
+    """A coloured unicode bar of *width* cells at fill fraction *frac* (eighth precision)."""
+    frac = max(0.0, min(1.0, frac))
+    eighths = round(frac * width * 8)
+    full, rem = divmod(eighths, 8)
+    part = _PARTIALS[rem - 1] if rem else ""
+    empty = max(0, width - full - (1 if part else 0))
+    return f"{_CYAN}{'█' * full}{part}{_RESET}{_DIM}{'░' * empty}{_RESET}"
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +112,11 @@ def progress_iter(
     t_last_print = t_start
     last_milestone = -1
     i = 0
+    tty = _stdout_is_tty()
+    spin_i = 0
 
     def _print_line(i: int, final: bool = False) -> None:
-        """Print one progress line to stdout (flush for log redirection)."""
+        """Print one plain, greppable progress line to stdout (non-TTY / log files)."""
         elapsed = time.perf_counter() - t_start
         rate = i / elapsed if elapsed > 0 else 0.0
 
@@ -108,30 +138,57 @@ def progress_iter(
                 flush=True,
             )
 
-    # Print start line immediately (before first item)
-    _print_line(0)
+    def _draw(i: int, final: bool = False) -> None:
+        """Redraw the fancy in-place coloured bar on the current TTY line."""
+        nonlocal spin_i
+        spin_i += 1
+        elapsed = time.perf_counter() - t_start
+        rate = i / elapsed if elapsed > 0 else 0.0
+        spin = " " if final else _SPIN[spin_i % len(_SPIN)]
+        if total is not None and total > 0:
+            pct = 100 if final else int(100 * i / total)
+            remaining = (total - i) / rate if (rate > 0 and not final) else 0.0
+            eta = "0:00" if final else format_duration(remaining)
+            line = (f"{_CYAN}{spin}{_RESET} {_DIM}{label}{_RESET} "
+                    f"{_DIM}│{_RESET}{_bar(1.0 if final else i / total)}{_DIM}│{_RESET} "
+                    f"{_BOLD}{pct:3d}%{_RESET} {_DIM}({i}/{total}) · "
+                    f"{format_duration(elapsed)} · ETA {eta} · {rate:.1f}/s{_RESET}")
+        else:
+            line = (f"{_CYAN}{spin}{_RESET} {_DIM}{label}{_RESET} {_BOLD}{i}{_RESET} "
+                    f"{_DIM}items · {format_duration(elapsed)} · {rate:.1f}/s{_RESET}")
+        sys.stdout.write("\r\x1b[2K" + line)
+        sys.stdout.flush()
+
+    (_draw if tty else _print_line)(0)
 
     for item in iterable:
         yield item
         i += 1
-
         now = time.perf_counter()
-        interval_elapsed = now - t_last_print >= min_interval
 
-        # Check 10%-milestone crossing
-        milestone_crossed = False
-        if total is not None and total > 0:
-            current_milestone = int(100 * i / total) // 10
-            if current_milestone > last_milestone:
-                last_milestone = current_milestone
-                milestone_crossed = True
+        if tty:
+            is_last = total is not None and total > 0 and i >= total
+            if now - t_last_print >= 0.066 or is_last:
+                _draw(i)
+                t_last_print = now
+        else:
+            interval_elapsed = now - t_last_print >= min_interval
+            milestone_crossed = False
+            if total is not None and total > 0:
+                current_milestone = int(100 * i / total) // 10
+                if current_milestone > last_milestone:
+                    last_milestone = current_milestone
+                    milestone_crossed = True
+            if interval_elapsed or milestone_crossed:
+                _print_line(i)
+                t_last_print = now
 
-        if interval_elapsed or milestone_crossed:
-            _print_line(i)
-            t_last_print = now
-
-    # Always print final line
-    _print_line(i, final=True)
+    if tty:
+        _draw(i, final=True)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    else:
+        _print_line(i, final=True)
 
 
 # ---------------------------------------------------------------------------
