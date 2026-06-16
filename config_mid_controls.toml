@@ -1,0 +1,33 @@
+# MiD/quaSIM control harmonization scope = the MiD-controllable trio only.
+# The minimal set the eqasim-bs popsim_mid control catalog needs harmonized to _adj:
+#   Whg_Gebaeudetyp   -> building_type control (MiD haustyp)
+#   HH_Seniorenstatus -> validation reference (already _adj, kept for one complete file)
+#   HH_Familientyp    -> household_type 5-class control (MiD haushaltstyp) -- the one we still need
+# The full Tier 1+2 catalog stays IMPLEMENTED (config_tier1_2.toml) but un-run for now.
+# (household_size / Lebensform / Geburtsland are already _adj via the topics8 stage.)
+
+[data]
+version_tag = "v3_midctrl"
+
+[harmonize]
+topics = ["Whg_Gebaeudetyp", "HH_Seniorenstatus", "HH_Familientyp"]
+derived_tenure = true
+derived_vacancy = true
+
+[scope]
+mode = "national"
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true
+totals    = true
+ages      = true
+gemeinde  = true
+gender    = true
+topics8   = true
+aggs      = true
+regiostar = true
+extend    = true

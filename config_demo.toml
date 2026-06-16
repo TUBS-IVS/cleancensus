@@ -1,0 +1,31 @@
+# Quick visual demo: full pipeline on a tiny subset (Braunschweig, ARS5 03101).
+# Producer stages are skip-cached (national intermediates already in data/work);
+# extend -> tenure -> vacancy -> sanity run on the subset in ~minutes so the new
+# banner / logging / progress bars / summary are visible in a real terminal.
+
+[data]
+version_tag = "demo"
+
+[harmonize]
+topics = ["Whg_Gebaeudetyp", "Geb_Gebaeudetyp", "Geb_AnzahlWohnungen", "HH_Seniorenstatus"]
+derived_tenure = true
+derived_vacancy = true
+
+[scope]
+mode = "subset"
+ars_prefixes = ["03101"]   # Braunschweig
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true
+totals    = true
+ages      = true
+gemeinde  = true
+gender    = true
+topics8   = true
+aggs      = true
+regiostar = true
+extend    = true
