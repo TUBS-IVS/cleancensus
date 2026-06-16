@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from cleancensus import report
+from cleancensus import theme as _theme
 
 
 def _cfg():
@@ -57,3 +58,13 @@ def test_summary_color_adds_ansi():
 def test_stage_frame():
     f = report.stage_frame(6, 12, "topics8", last="~0:00", color=False)
     assert "stage 6/12" in f and "topics8" in f
+
+
+def test_stage_frame_colours_name_by_phase():
+    out = report.stage_frame(2, 9, "sanity", color=True)
+    assert _theme.stage_color("sanity") in out
+
+
+def test_report_uses_no_local_palette():
+    # _PAL must be gone — colours come from theme now.
+    assert not hasattr(report, "_PAL")

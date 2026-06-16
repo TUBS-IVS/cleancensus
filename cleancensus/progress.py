@@ -9,11 +9,13 @@ Provides:
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 from pathlib import Path
 from typing import Iterable, Iterator, TypeVar
+
+from cleancensus import theme
+from cleancensus.theme import want_color
 
 T = TypeVar("T")
 
@@ -25,13 +27,11 @@ T = TypeVar("T")
 
 _PARTIALS = "▏▎▍▌▋▊▉"   # 1/8 .. 7/8 block
 _SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-_CYAN, _DIM, _BOLD, _RESET = "\x1b[36m", "\x1b[2m", "\x1b[1m", "\x1b[0m"
+_CYAN, _DIM, _BOLD, _RESET = theme.ACCENT, theme.DIM, theme.BOLD, theme.RESET
 
 
 def _stdout_is_tty() -> bool:
-    if os.environ.get("NO_COLOR"):
-        return False
-    return bool(getattr(sys.stdout, "isatty", lambda: False)())
+    return want_color("auto", stream=sys.stdout)
 
 
 def _bar(frac: float, width: int = 22) -> str:
@@ -69,6 +69,28 @@ def format_duration(seconds: float) -> str:
     if h > 0:
         return f"{h}:{m:02d}:{s:02d}"
     return f"{m}:{s:02d}"
+
+
+def format_rate(rate: float) -> str | None:
+    """Human-friendly throughput, or None when there's nothing meaningful to show.
+
+    >>> format_rate(12.3)
+    '12.3/s'
+    >>> format_rate(0.75)
+    '45.0/min'
+    >>> format_rate(1 / 3120)
+    '~52:00/it'
+    >>> format_rate(0.0) is None
+    True
+    """
+    if rate <= 0:
+        return None
+    if rate >= 1.0:
+        return f"{rate:.1f}/s"
+    per_min = rate * 60.0
+    if per_min >= 1.0:
+        return f"{per_min:.1f}/min"
+    return f"~{format_duration(1.0 / rate)}/it"
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +141,8 @@ def progress_iter(
         """Print one plain, greppable progress line to stdout (non-TTY / log files)."""
         elapsed = time.perf_counter() - t_start
         rate = i / elapsed if elapsed > 0 else 0.0
+        rate_str = format_rate(rate)
+        rate_tok = (" | " + rate_str.replace("/s", " it/s").replace("/min", " it/min")) if rate_str else ""
 
         if total is not None and total > 0:
             pct = int(100 * i / total)
@@ -128,13 +152,12 @@ def progress_iter(
             eta_str = format_duration(remaining) if not final else "0:00"
             print(
                 f"[{label}] {pct}% ({i}/{total}) | elapsed {format_duration(elapsed)} "
-                f"| ETA {eta_str} | {rate:.1f} it/s",
+                f"| ETA {eta_str}{rate_tok}",
                 flush=True,
             )
         else:
             print(
-                f"[{label}] {i} items | elapsed {format_duration(elapsed)} "
-                f"| {rate:.1f} it/s",
+                f"[{label}] {i} items | elapsed {format_duration(elapsed)}{rate_tok}",
                 flush=True,
             )
 
@@ -144,6 +167,8 @@ def progress_iter(
         spin_i += 1
         elapsed = time.perf_counter() - t_start
         rate = i / elapsed if elapsed > 0 else 0.0
+        rate_str = format_rate(rate)
+        rate_tok = (" · " + rate_str) if rate_str else ""
         spin = " " if final else _SPIN[spin_i % len(_SPIN)]
         if total is not None and total > 0:
             pct = 100 if final else int(100 * i / total)
@@ -152,10 +177,10 @@ def progress_iter(
             line = (f"{_CYAN}{spin}{_RESET} {_DIM}{label}{_RESET} "
                     f"{_DIM}│{_RESET}{_bar(1.0 if final else i / total)}{_DIM}│{_RESET} "
                     f"{_BOLD}{pct:3d}%{_RESET} {_DIM}({i}/{total}) · "
-                    f"{format_duration(elapsed)} · ETA {eta} · {rate:.1f}/s{_RESET}")
+                    f"{format_duration(elapsed)} · ETA {eta}{rate_tok}{_RESET}")
         else:
             line = (f"{_CYAN}{spin}{_RESET} {_DIM}{label}{_RESET} {_BOLD}{i}{_RESET} "
-                    f"{_DIM}items · {format_duration(elapsed)} · {rate:.1f}/s{_RESET}")
+                    f"{_DIM}items · {format_duration(elapsed)}{rate_tok}{_RESET}")
         sys.stdout.write("\r\x1b[2K" + line)
         sys.stdout.flush()
 

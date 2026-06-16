@@ -9,6 +9,7 @@ import pytest
 
 from cleancensus.progress import (
     format_duration,
+    format_rate,
     load_stage_timings,
     progress_iter,
     save_stage_timings,
@@ -168,3 +169,39 @@ def test_save_creates_parent_dirs():
         assert path.exists()
         loaded = load_stage_timings(path)
         assert loaded["x"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# format_rate — adaptive throughput
+# ---------------------------------------------------------------------------
+
+
+def test_format_rate_per_second():
+    assert format_rate(12.3) == "12.3/s"
+    assert format_rate(1.0) == "1.0/s"
+
+
+def test_format_rate_per_minute():
+    assert format_rate(0.75) == "45.0/min"   # 0.75/s = 45/min
+
+
+def test_format_rate_per_item_duration():
+    # 1 item every 3120s = 52:00 → "~52:00/it"
+    assert format_rate(1.0 / 3120.0) == "~52:00/it"
+
+
+def test_format_rate_zero_is_none():
+    assert format_rate(0.0) is None
+    assert format_rate(-1.0) is None
+
+
+def test_progress_start_line_carries_no_rate(capsys):
+    # At i=0 nothing is done yet, so there is no meaningful rate: the start line
+    # must omit the rate token (it previously printed a bogus "0.0 it/s").
+    # NB: a naive `"0.0 it/s" not in out` is unsafe — "80000.0 it/s" contains it;
+    # the real invariant is "no rate token on the i=0 line".
+    list(progress_iter(range(3), "lbl", total=3, min_interval=0.0))
+    lines = [l for l in capsys.readouterr().out.splitlines() if l.strip()]
+    start = lines[0]
+    assert "0% (0/3)" in start
+    assert "it/s" not in start

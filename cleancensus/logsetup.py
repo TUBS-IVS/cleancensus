@@ -8,29 +8,11 @@ so ``logs/*.log`` stay clean plain text.
 from __future__ import annotations
 
 import logging
-import os
 import sys
 
+from cleancensus import theme
+
 _ROOT = "cleancensus"
-
-_LEVEL_COLOR = {
-    "DEBUG": "\x1b[2m",       # dim
-    "INFO": "\x1b[32m",       # green
-    "WARNING": "\x1b[33m",    # yellow
-    "ERROR": "\x1b[31m",      # red
-    "CRITICAL": "\x1b[1;31m", # bold red
-}
-_DIM = "\x1b[2m"
-_ACCENT = "\x1b[36m"          # cyan stage tag
-_RESET = "\x1b[0m"
-
-
-def _want_color(color) -> bool:
-    if color == "auto" or color is None:
-        if os.environ.get("NO_COLOR"):
-            return False
-        return bool(getattr(sys.stderr, "isatty", lambda: False)())
-    return bool(color)
 
 
 class ColorFormatter(logging.Formatter):
@@ -38,7 +20,7 @@ class ColorFormatter(logging.Formatter):
 
     def __init__(self, color="auto"):
         super().__init__()
-        self.color = _want_color(color)
+        self.color = theme.want_color(color)
 
     def format(self, record: logging.LogRecord) -> str:
         ts = self.formatTime(record, "%H:%M:%S")
@@ -48,9 +30,11 @@ class ColorFormatter(logging.Formatter):
         if record.exc_info:
             msg = msg + "\n" + self.formatException(record.exc_info)
         if self.color:
-            lc = _LEVEL_COLOR.get(level, "")
-            return (f"{_DIM}{ts}{_RESET} {_DIM}│{_RESET} {lc}{level:<7}{_RESET} "
-                    f"{_DIM}│{_RESET} {_ACCENT}{stage:<10}{_RESET} {_DIM}│{_RESET} {msg}")
+            lc = theme.LEVEL_COLOR.get(level, "")
+            sc = theme.stage_color(stage)
+            d, r = theme.DIM, theme.RESET
+            return (f"{d}{ts}{r} {d}│{r} {lc}{level:<7}{r} "
+                    f"{d}│{r} {sc}{stage:<10}{r} {d}│{r} {msg}")
         return f"{ts} │ {level:<7} │ {stage:<10} │ {msg}"
 
 
@@ -97,4 +81,4 @@ def get_logger(stage: str) -> logging.Logger:
 
 def color_enabled(color="auto") -> bool:
     """Whether ANSI colour should be emitted (shared by report.py banner/summary)."""
-    return _want_color(color)
+    return theme.want_color(color)

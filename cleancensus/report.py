@@ -9,20 +9,15 @@ from __future__ import annotations
 
 import sys
 
-from cleancensus import __version__
+from cleancensus import __version__, theme
 from cleancensus.logsetup import color_enabled
 
 _W = 60  # inner content width
 
-_PAL = {
-    "border": "\x1b[2m",
-    "title": "\x1b[1;36m",
-    "key": "\x1b[2m",
-    "ok": "\x1b[32m",
-    "warn": "\x1b[33m",
-    "err": "\x1b[31m",
-    "accent": "\x1b[36m",
-    "reset": "\x1b[0m",
+_KEYMAP = {
+    "border": theme.BORDER, "title": theme.TITLE, "key": theme.DIM,
+    "ok": theme.LEVEL_COLOR["INFO"], "warn": theme.LEVEL_COLOR["WARNING"],
+    "err": theme.LEVEL_COLOR["ERROR"], "accent": theme.ACCENT, "reset": theme.RESET,
 }
 
 
@@ -44,7 +39,7 @@ def _fold_if_needed(text: str, out) -> str:
 
 
 def _c(text: str, key: str, color: bool) -> str:
-    return f"{_PAL[key]}{text}{_PAL['reset']}" if color else text
+    return f"{_KEYMAP[key]}{text}{_KEYMAP['reset']}" if color else text
 
 
 def _bar(color: bool) -> str:
@@ -54,7 +49,7 @@ def _bar(color: bool) -> str:
 def _row(text: str, color: bool, paint: str | None = None) -> str:
     inner = text.ljust(_W)
     if paint and color:
-        inner = f"{_PAL[paint]}{inner}{_PAL['reset']}"
+        inner = f"{_KEYMAP[paint]}{inner}{_KEYMAP['reset']}"
     return f"{_bar(color)} {inner} {_bar(color)}"
 
 
@@ -119,7 +114,7 @@ def print_banner(cfg, steps, *, color=None, out=None) -> None:
 def stage_frame(k: int, n: int, name: str, last: str | None = None, *, color=None) -> str:
     color = color_enabled() if color is None else color
     head = _c(f"▶ stage {k}/{n}", "accent", color)
-    nm = _c(name, "title", color)
+    nm = f"{theme.stage_color(name)}{name}{theme.RESET}" if color else name
     tail = _c(f"(last run: {last})", "key", color) if last else ""
     return f"{head} · {nm}  {tail}".rstrip()
 
@@ -133,7 +128,7 @@ def _row_token(prefix: str, token_plain: str, color: bool, paint: str) -> str:
     plain = f"{prefix}{token_plain}"
     inner = plain.ljust(_W)
     if color:
-        inner = inner.replace(token_plain, f"{_PAL[paint]}{token_plain}{_PAL['reset']}", 1)
+        inner = inner.replace(token_plain, f"{_KEYMAP[paint]}{token_plain}{_KEYMAP['reset']}", 1)
     return f"{_bar(color)} {inner} {_bar(color)}"
 
 
