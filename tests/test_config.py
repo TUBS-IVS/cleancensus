@@ -38,6 +38,19 @@ def test_tiers_selector(tmp_path):
     assert cfg.topics == ["HH_Seniorenstatus", "HH_Familientyp", "Pers_Staatsangehoerigkeit"]
 
 
+def test_tiers_1_and_2_resolves_to_nine_topics(tmp_path):
+    cfg = load_config(_write(tmp_path, """
+        [harmonize]
+        tiers = [1, 2]
+    """))
+    assert len(cfg.topics) == 9
+    assert set(cfg.topics) == {
+        "Geb_Gebaeudetyp", "Geb_AnzahlWohnungen", "Geb_Baujahr", "Geb_Energietraeger",
+        "Whg_Gebaeudetyp", "Whg_Heizungsart",
+        "HH_Seniorenstatus", "HH_Familientyp", "Pers_Staatsangehoerigkeit",
+    }
+
+
 def test_topics_and_tiers_conflict(tmp_path):
     with pytest.raises(ValueError, match="not both"):
         load_config(_write(tmp_path, """

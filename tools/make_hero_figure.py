@@ -164,6 +164,10 @@ def main():
     )
     ax2.set_title("Home-ownership rate (%) — household-weighted, 1 km bins",
                   color=TITLE_COLOR, fontsize=13, pad=8)
+    ax1.text(0.99, 0.01, ATTR_TEXT, transform=ax1.transAxes,
+            ha="right", va="bottom", color=ATTR_COLOR, fontsize=5.5)
+    ax2.text(0.99, 0.01, ATTR_TEXT, transform=ax2.transAxes,
+            ha="right", va="bottom", color=ATTR_COLOR, fontsize=5.5)
     ax2.axis("off")
     cb2 = fig.colorbar(im2, ax=ax2, fraction=0.03, pad=0.01, shrink=0.7)
     cb2.ax.yaxis.set_tick_params(color=ATTR_COLOR, labelcolor=ATTR_COLOR)
@@ -192,6 +196,8 @@ def main():
         ax2b.imshow(eiq_grid * 100, origin="lower", extent=extent,
                     vmin=0, vmax=100, cmap="viridis", aspect="equal",
                     interpolation="nearest")
+        ax2b.text(0.99, 0.01, ATTR_TEXT, transform=ax2b.transAxes,
+                  ha="right", va="bottom", color=ATTR_COLOR, fontsize=5)
         ax2b.set_title("Home-ownership rate (%)", color=TITLE_COLOR, fontsize=11, pad=6)
         ax2b.axis("off")
         fig2.savefig(OUT, dpi=100, facecolor=BG, bbox_inches="tight")

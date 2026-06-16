@@ -434,6 +434,7 @@ See [`docs/RAW_DOWNLOAD.md`](docs/RAW_DOWNLOAD.md) for detailed download instruc
 Place these three canonical input files in `data/inputs/` and run `uv run cleancensus --config config.example.toml`.
 Only the **extend**, **tenure** (optional), **vacancy** (optional), and **sanity** stages run — the raw→prepared chain is skipped.
 A national run with the 2 default topics + tenure takes approximately **2–4 hours** on a desktop CPU; peak RAM ~4–6 GB.
+The production harmonization scope (used by eqasim-bs control workflows) is `config_tier1_2.toml`: `tiers = [1, 2]` resolves to the full 9-topic _adj catalog (6 building/dwelling + 3 household/citizenship); sanity auto-validates all 9.
 
 | File | Shape | Content |
 |---|---|---|

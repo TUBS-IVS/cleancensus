@@ -32,6 +32,7 @@ data/raw/genesis/*
 *.parquet
 *.pickle
 *.log
+/logs/
 zgb_parents.csv
 stage_b_national.log
 _cell*.py

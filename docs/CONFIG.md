@@ -183,7 +183,51 @@ sanity = "warn"       # downgrade to warn so the run always completes
 write_manifest = true
 ```
 
-### (d) Full mode — raw→final pipeline (all 11 stages)
+### (d) Tier 1+2 production — full _adj catalog for eqasim-bs controls
+
+This is the production harmonization scope used by the eqasim-bs control workflows.
+It harmonizes all 9 Tier-1+2 topics (building/dwelling characteristics + household
+composition + citizenship) and auto-validates `sum(cats) == *_adj` for all 9 via `run_sanity`.
+Outputs are named with `v3_tier1_2` so they do not overwrite the v2 two-topic reference run.
+
+```toml
+# config_tier1_2.toml — national production: Tier 1+2 (9 topics)
+[data]
+version_tag = "v3_tier1_2"
+
+[harmonize]
+tiers = [1, 2]          # resolves to 9 topics: 6 Tier-1 (Geb/Whg) + 3 Tier-2 (HH/Pers)
+derived_tenure = true
+derived_vacancy = true
+
+[scope]
+mode = "national"
+
+[run]
+sanity = "fail"
+write_manifest = true
+
+[stages]
+merge     = true
+totals    = true
+ages      = true
+gemeinde  = true
+gender    = true
+topics8   = true
+aggs      = true
+regiostar = true
+extend    = true
+```
+
+The 9 resolved topic names are:
+- **Tier 1** (building/dwelling): `Geb_Gebaeudetyp`, `Geb_AnzahlWohnungen`, `Geb_Baujahr`,
+  `Geb_Energietraeger`, `Whg_Gebaeudetyp`, `Whg_Heizungsart`
+- **Tier 2** (household/citizenship): `HH_Seniorenstatus`, `HH_Familientyp`,
+  `Pers_Staatsangehoerigkeit`
+
+`sanity = "fail"` ensures all 9 `sum(cats) == *_adj` invariants hold before the run exits.
+
+### (e) Full mode — raw→final pipeline (all 11 stages)
 
 Run the complete pipeline from the raw z22data Parquet files through to the final output.
 Requires internet access (merge stage) and the two external reference files (gemeinde/gender).
